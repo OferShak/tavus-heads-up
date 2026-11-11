@@ -1,0 +1,661 @@
+/* Stage: laptop (1280x720) and TV (1920x1080). Sizes are in rem and the root scales with the viewport,
+   so one layout serves both. The Join QR note is the one loud element; everything else stays quiet. */
+
+html:has(.stage) {
+  /* ~16px at 1280x720, ~24px at 1920x1080. */
+  font-size: clamp(13px, min(1.25vw, 2.22vh), 30px);
+}
+
+.stage {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 2rem 1.5rem;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.stage-logo {
+  font-size: 1.5rem;
+  color: var(--paper);
+}
+
+.stage-num {
+  font-stretch: 62%;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.85;
+}
+
+/* ---------- Plain screens (setting up, closed) ---------- */
+
+.stage-plain {
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.stage-plain .stage-logo {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.stage-plain-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.stage-plain-line {
+  color: var(--muted);
+  font-size: 1.25rem;
+}
+
+/* ---------- Waiting ---------- */
+
+.stage-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.stage-howlink {
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-underline-offset: 0.2em;
+}
+
+.stage-howlink:hover {
+  color: var(--paper);
+}
+
+.stage-waiting-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 30rem);
+  gap: 5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage-join {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.75rem 1.75rem 1.25rem;
+}
+
+.stage-join-qr {
+  width: min(22rem, 50vh);
+  height: auto;
+}
+
+.stage-join-code {
+  margin-top: 0.75rem;
+  font-size: 4rem;
+  font-weight: 900;
+  font-stretch: 75%;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stage-waiting-title {
+  font-size: 2rem;
+  font-weight: 800;
+  font-stretch: 87.5%;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.stage-waiting-alt {
+  margin-top: 0.75rem;
+  color: var(--muted);
+}
+
+.stage-waiting-alt strong {
+  color: var(--paper);
+  font-weight: 700;
+}
+
+.stage-camcheck {
+  margin-top: 2rem;
+}
+
+.stage-camcheck-frame {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--ink-2);
+}
+
+.stage-camcheck figcaption {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.stage-camcheck-error {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-left: 4px solid var(--danger);
+}
+
+.stage-camcheck-error .btn {
+  font-size: 1rem;
+  min-height: 2.5rem;
+}
+
+/* Raw frames stay unmirrored for the Word QR scanner; only the picture is flipped. */
+.stage-selfview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+/* ---------- Game ---------- */
+
+.stage-game {
+  height: 100dvh;
+  min-height: 0;
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+.stage-hud {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 2.5rem;
+}
+
+.stage-hud .stage-logo {
+  align-self: center;
+}
+
+.stage-hud-round {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.stage-hud-category {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.stage-hud-index {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.stage-hud-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 6.5rem;
+  justify-content: flex-end;
+}
+
+.stage-hud-stat .stage-num {
+  font-size: 3.75rem;
+}
+
+.stage-hud-unit {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.stage-hud-stat.is-low .stage-num {
+  color: var(--pass);
+}
+
+.stage-timebar {
+  height: 0.3rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ink-2);
+}
+
+.stage-timebar span {
+  display: block;
+  height: 100%;
+  background: var(--sticky);
+  transform-origin: left center;
+  transition: transform 100ms linear;
+}
+
+.stage-arena {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+  padding-top: 0.5rem;
+}
+
+.stage-game.is-recap .stage-arena {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+}
+
+/* The hero keeps 16:9 inside whatever space is left. */
+.stage-hero-wrap {
+  container-type: size;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+
+.stage-game.is-recap .stage-hero-wrap {
+  place-items: start center;
+}
+
+.stage-hero {
+  position: relative;
+  width: min(100cqw, 100cqh * 16 / 9);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--ink-2);
+}
+
+.stage-pal-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.stage-pal-panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 2rem 18%;
+  text-align: center;
+  background: var(--ink-2);
+}
+
+.stage-pal-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.stage-pal-detail {
+  color: var(--muted);
+  text-wrap: balance;
+}
+
+.stage-pal-panel.is-warn .stage-pal-title {
+  color: var(--pass);
+}
+
+.stage-caption {
+  position: absolute;
+  left: 1.25rem;
+  bottom: 1.25rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--ink) 82%, transparent);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.stage-countdown {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+.stage-countdown .stage-num {
+  font-size: 15rem;
+  color: var(--sticky);
+  animation: stage-count 1s var(--ease) both;
+}
+
+@keyframes stage-count {
+  from {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 1;
+    transform: scale(0.96);
+  }
+}
+
+.stage-heard {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  background: var(--got);
+  color: var(--ink);
+  font-weight: 800;
+  animation: stage-heard-in 220ms var(--ease) both;
+}
+
+@keyframes stage-heard-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.4rem);
+  }
+}
+
+/* Self-view tile over the hero's corner. */
+.stage-pip {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  width: 24%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 2px solid var(--paper);
+  border-radius: var(--radius);
+  background: var(--ink);
+}
+
+.stage-pip-error {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ---------- Recap ---------- */
+
+.stage-recap {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0 0.5rem 0.25rem 0;
+}
+
+.stage-recap-head {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.stage-recap-score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.stage-recap-score .stage-num {
+  font-size: 7rem;
+}
+
+.stage-recap-score-unit {
+  color: var(--muted);
+  font-size: 1.25rem;
+}
+
+.stage-recap-category {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.stage-recap-sub {
+  color: var(--muted);
+}
+
+.stage-pb {
+  margin-left: auto;
+  padding: 0.9rem 1.1rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.stage-pb-title {
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.stage-pb-detail {
+  font-size: 0.85rem;
+}
+
+.stage-recap-words {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+}
+
+.stage-recap-words li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.15rem 0.65rem;
+  border: 1.5px solid currentColor;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.stage-recap-words li.is-got {
+  color: var(--got);
+}
+
+.stage-recap-words li.is-pass {
+  color: var(--pass);
+}
+
+.stage-recap-words li.is-unfinished {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+.stage-mark {
+  font-weight: 900;
+}
+
+.stage-slip-note {
+  color: var(--muted);
+  font-size: 0.8em;
+  font-weight: 400;
+}
+
+.stage-recap-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.stage-recap-cols h3 {
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid var(--ink-2);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.stage-dl > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--ink-2);
+}
+
+.stage-dl dt {
+  color: var(--muted);
+}
+
+.stage-dl dd {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.stage-dd-note {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.stage-recap-next {
+  margin-top: auto;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* ---------- Audio unblock ---------- */
+
+.stage-unmute {
+  position: fixed;
+  left: 50%;
+  bottom: 2rem;
+  z-index: 20;
+  transform: translateX(-50%);
+}
+
+.stage-unmute:active:not(:disabled) {
+  transform: translateX(-50%) translateY(2px);
+}
+
+/* ---------- Debug (?debug) ---------- */
+
+.stage-debug {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 30;
+  width: min(30rem, 45vw);
+  max-height: calc(100dvh - 1.5rem);
+  overflow: auto;
+  padding: 0.6rem;
+  border: 1px solid var(--ink-2);
+  border-radius: var(--radius);
+  background: rgba(10, 12, 40, 0.94);
+  color: var(--paper);
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.stage-debug dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.stage-debug dl > div {
+  display: contents;
+}
+
+.stage-debug dt {
+  color: var(--muted);
+}
+
+.stage-debug dd {
+  word-break: break-all;
+}
+
+.stage-debug ol {
+  list-style: none;
+  padding: 0;
+}
+
+.stage-debug li {
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--ink-2);
+}
+
+.stage-debug strong {
+  color: var(--sticky);
+}
+
+.stage-debug pre {
+  margin: 0.2rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font: inherit;
+  color: var(--muted);
+}
+
+/* ---------- Narrow or portrait screens ---------- */
+
+@media (max-width: 900px), (max-aspect-ratio: 1 / 1) {
+  html:has(.stage) {
+    font-size: 15px;
+  }
+
+  .stage {
+    padding: 1rem;
+  }
+
+  .stage-waiting-main {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.5rem;
+    justify-items: center;
+    padding-top: 2rem;
+  }
+
+  .stage-join-qr {
+    width: min(18rem, 70vw);
+  }
+
+  .stage-game {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .stage-hud {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 1rem;
+  }
+
+  .stage-hud .stage-logo {
+    display: none;
+  }
+
+  .stage-game.is-recap .stage-arena,
+  .stage-recap-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stage-hero-wrap {
+    container-type: inline-size;
+  }
+
+  .stage-hero {
+    width: 100%;
+  }
+}
+
+.stage-pal-note {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  opacity: 0.8;
+}

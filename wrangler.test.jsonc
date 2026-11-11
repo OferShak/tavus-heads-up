@@ -1,0 +1,15 @@
+// Test-only config: same Worker and Durable Objects, no assets/routes, no Tavus key (PAL runs "offline").
+{
+  "name": "over-my-head-test",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOM", "class_name": "Room" },
+      { "name": "PLAYER_STATS", "class_name": "PlayerStats" },
+      { "name": "GUARD", "class_name": "Guard" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room", "PlayerStats", "Guard"] }],
+  "vars": { "TAVUS_PAL_ID": "", "MAX_CONCURRENT": "1", "TAVUS_TEST_MODE": "0" }
+}

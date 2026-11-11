@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "over-my-head",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/ws/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOM", "class_name": "Room" },
+      { "name": "PLAYER_STATS", "class_name": "PlayerStats" },
+      { "name": "GUARD", "class_name": "Guard" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room", "PlayerStats", "Guard"] }],
+  "routes": [{ "pattern": "overmyhead.ofershak.com", "custom_domain": true }],
+  "vars": {
+    // Set by `npm run setup-pal` output. Not secret.
+    "TAVUS_PAL_ID": "p3ca4b55ce14",
+    // Max live PAL conversations across all Rooms (protects Tavus minutes on a public URL).
+    "MAX_CONCURRENT": "1",
+    // "1" = Tavus creates the conversation but the PAL never joins (no minutes used).
+    "TAVUS_TEST_MODE": "0"
+  },
+  // Set with `wrangler secret put TAVUS_API_KEY` (and in .dev.vars locally). Without it the game runs, minus the PAL.
+  "secrets": { "required": ["TAVUS_API_KEY"] },
+  "observability": { "enabled": true }
+}

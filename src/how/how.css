@@ -1,0 +1,235 @@
+/* /how: long-form reading page. Paper background, ink text, one left-aligned column. */
+
+body.how-body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.how {
+  --measure: 68ch;
+  --how-gutter: clamp(1rem, 5vw, 3rem);
+  --rule: color-mix(in srgb, var(--ink) 14%, transparent);
+  --code-bg: color-mix(in srgb, var(--ink) 6%, var(--paper));
+  min-height: 100dvh;
+  padding: 0 var(--how-gutter) var(--s-7);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* Header */
+.how-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  max-width: var(--measure);
+  padding: var(--s-6) 0 var(--s-5);
+  border-bottom: 2px solid var(--ink);
+}
+
+.how-home {
+  font-size: clamp(1.6rem, 5vw, 2.1rem);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.how-note {
+  --tilt: 4deg;
+  padding: var(--s-2) var(--s-3) var(--s-3);
+  font-family: var(--marker);
+  font-size: var(--t-sm);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.how-note::before {
+  top: -0.45rem;
+  height: 0.9rem;
+  width: 60%;
+}
+
+.how-play {
+  margin-left: auto;
+  font-weight: 700;
+  font-size: var(--t-md);
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.how-play:hover {
+  text-decoration-color: var(--pass);
+}
+
+/* Article */
+.how-article {
+  max-width: var(--measure);
+  padding-top: var(--s-6);
+  font-size: clamp(1.0625rem, 0.98rem + 0.35vw, 1.1875rem);
+  line-height: 1.65;
+  font-variation-settings: 'wdth' 100;
+  overflow-wrap: break-word;
+}
+
+.how-article > * + * {
+  margin-top: 1em;
+}
+
+.how-article h1,
+.how-article h2,
+.how-article h3,
+.how-article h4 {
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.how-article h1 {
+  font-size: clamp(2.1rem, 1.5rem + 3vw, 3.25rem);
+  font-weight: 900;
+  font-stretch: 112%;
+  font-variation-settings: 'wdth' 112;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--s-5);
+}
+
+.how-article h2 {
+  margin-top: 2.4em;
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--rule);
+  font-size: clamp(1.45rem, 1.2rem + 1vw, 1.85rem);
+  font-weight: 800;
+  font-variation-settings: 'wdth' 106;
+}
+
+.how-article h3 {
+  margin-top: 1.8em;
+  font-size: 1.2em;
+  font-weight: 800;
+}
+
+.how-article h1 + *,
+.how-article h2 + *,
+.how-article h3 + * {
+  margin-top: 0.6em;
+}
+
+.how-article a {
+  color: var(--ink);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.how-article strong {
+  font-weight: 750;
+}
+
+.how-article ul,
+.how-article ol {
+  padding-left: 1.4em;
+}
+
+.how-article li + li {
+  margin-top: 0.5em;
+}
+
+.how-article li::marker {
+  font-weight: 700;
+}
+
+.how-article blockquote {
+  padding-left: var(--s-4);
+  border-left: 3px solid var(--sticky);
+  color: color-mix(in srgb, var(--ink) 80%, transparent);
+}
+
+.how-article hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  margin: var(--s-6) 0;
+}
+
+/* Code: kept in the body face, set apart by a tint rather than a monospace font. */
+.how-article code {
+  padding: 0.08em 0.32em;
+  border-radius: 3px;
+  background: var(--code-bg);
+  font-family: var(--font);
+  font-size: 0.92em;
+  font-weight: 600;
+}
+
+.how-article pre {
+  padding: var(--s-4);
+  border-radius: var(--radius);
+  background: var(--code-bg);
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+.how-article pre code {
+  padding: 0;
+  background: none;
+  font-weight: 500;
+}
+
+/* Tables scroll inside their wrapper on narrow screens. */
+.how-table {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.how-article table {
+  width: 100%;
+  min-width: 32rem;
+  border-collapse: collapse;
+  font-size: 0.92em;
+  line-height: 1.45;
+}
+
+.how-article th,
+.how-article td {
+  padding: var(--s-2) var(--s-3);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--rule);
+}
+
+.how-article th {
+  font-weight: 800;
+  border-bottom: 2px solid var(--ink);
+}
+
+.how-article th:first-child,
+.how-article td:first-child {
+  padding-left: 0;
+}
+
+/* Footer */
+.how-footer {
+  max-width: var(--measure);
+  margin-top: var(--s-7);
+  padding-top: var(--s-4);
+  border-top: 2px solid var(--ink);
+  font-weight: 700;
+}
+
+.how-footer a {
+  color: var(--ink);
+  text-underline-offset: 4px;
+}
+
+.how :focus-visible {
+  outline-color: var(--ink);
+}
+
+@media (max-width: 420px) {
+  .how-header {
+    flex-wrap: wrap;
+    row-gap: var(--s-3);
+  }
+
+  .how-note {
+    order: 3;
+  }
+}

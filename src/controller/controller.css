@@ -1,0 +1,542 @@
+/* Controller: the Player's phone. Ink pages around sticky notes; during a Round the whole screen is the note. */
+
+.ctl {
+  --ctl-gutter-t: max(var(--s-4), env(safe-area-inset-top));
+  --ctl-gutter-r: max(var(--s-4), env(safe-area-inset-right));
+  --ctl-gutter-b: max(var(--s-4), env(safe-area-inset-bottom));
+  --ctl-gutter-l: max(var(--s-4), env(safe-area-inset-left));
+  min-height: 100dvh;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.ctl-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: 100%;
+  max-width: 34rem;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: var(--ctl-gutter-t) var(--ctl-gutter-r) var(--ctl-gutter-b) var(--ctl-gutter-l);
+}
+
+.ctl-logo {
+  font-size: var(--t-lg);
+  color: var(--sticky);
+}
+
+.ctl-title {
+  font-size: var(--t-xl);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.ctl-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  color: var(--muted);
+  font-size: var(--t-lg);
+}
+
+.ctl-fine {
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+
+.ctl-wide {
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ctl-pulse {
+    animation: ctl-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes ctl-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ---------- Join / messages ---------- */
+
+.ctl-join-note,
+.ctl-message-note {
+  display: block;
+  margin-top: var(--s-5);
+  padding: var(--s-6) var(--s-5) var(--s-5);
+}
+
+.ctl-join-note h1,
+.ctl-message-note h1 {
+  font-size: var(--t-xxl);
+  font-weight: 900;
+  font-stretch: 75%;
+  line-height: 1;
+}
+
+.ctl-join-note p,
+.ctl-message-note p {
+  margin-top: var(--s-3);
+  font-size: var(--t-lg);
+}
+
+.ctl-message {
+  justify-content: flex-start;
+}
+
+.ctl-join-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  margin-top: var(--s-4);
+}
+
+.ctl-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  color: var(--muted);
+}
+
+.ctl-field input {
+  min-height: 52px;
+  padding: var(--s-3) var(--s-4);
+  border: 2px solid var(--muted);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  color: var(--paper);
+  font-size: var(--t-lg); /* 16px+ keeps iOS from zooming on focus */
+}
+
+.ctl-field input:focus-visible {
+  border-color: var(--sticky);
+}
+
+/* ---------- Category notes ---------- */
+
+.ctl-cats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  padding: var(--s-4) var(--s-2) var(--s-2);
+}
+
+.ctl-cat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: 6.5rem;
+  padding: var(--s-5);
+  border: 0;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform 120ms var(--ease), opacity 160ms var(--ease);
+}
+
+.ctl-cat:active:not(:disabled) {
+  transform: rotate(var(--tilt)) scale(0.97);
+}
+
+.ctl-cat:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ctl-cat-name {
+  font-family: var(--marker);
+  font-size: var(--t-xl);
+  line-height: 1.1;
+}
+
+.ctl-cat-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-4);
+  width: 100%;
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+
+/* ---------- Countdown ---------- */
+
+.ctl-countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-5);
+  min-height: 100dvh;
+  padding: var(--ctl-gutter-t) var(--ctl-gutter-r) var(--ctl-gutter-b) var(--ctl-gutter-l);
+  text-align: center;
+  user-select: none;
+}
+
+.ctl-countdown-hint {
+  max-width: 22rem;
+  font-size: var(--t-xl);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ctl-countdown-num {
+  color: var(--sticky);
+  font-size: clamp(8rem, 45vmin, 18rem);
+  font-weight: 900;
+  font-stretch: 62%;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ctl-countdown-num {
+    animation: ctl-pop 400ms var(--ease);
+  }
+}
+
+@keyframes ctl-pop {
+  from {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+/* ---------- Playing: the whole screen is the sticky note ---------- */
+
+.ctl-play {
+  --ctl-qr-margin: var(--s-4);
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--sticky);
+  color: var(--ink);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+
+/* As big as fits, always square. The SVG carries its own 2-module quiet zone; the yellow margin adds more. */
+.ctl-qr {
+  width: min(
+    calc(100vw - var(--ctl-gutter-l) - var(--ctl-gutter-r) - 2 * var(--ctl-qr-margin)),
+    calc(100dvh - var(--ctl-gutter-t) - var(--ctl-gutter-b) - 2 * var(--ctl-qr-margin))
+  );
+  height: auto;
+  aspect-ratio: 1;
+  max-width: none;
+}
+
+/* Low contrast on purpose: it shouldn't compete with the QR for the camera. */
+.ctl-hud {
+  position: absolute;
+  top: var(--ctl-gutter-t);
+  left: var(--ctl-gutter-l);
+  display: flex;
+  flex-direction: column;
+  color: rgba(28, 31, 92, 0.32);
+  font-size: var(--t-md);
+  font-weight: 800;
+  font-stretch: 75%;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.ctl-tap-hint {
+  position: absolute;
+  top: 50%;
+  color: rgba(28, 31, 92, 0.22);
+  font-size: var(--t-sm);
+  font-weight: 700;
+  pointer-events: none;
+  writing-mode: vertical-rl;
+}
+
+.ctl-tap-pass {
+  left: var(--ctl-gutter-l);
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.ctl-tap-got {
+  right: var(--ctl-gutter-r);
+  transform: translateY(-50%);
+}
+
+/* ---------- Reveal after a tilt ---------- */
+
+.ctl-reveal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--ctl-gutter-t) var(--ctl-gutter-r) var(--ctl-gutter-b) var(--ctl-gutter-l);
+  color: var(--ink);
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.ctl-reveal.is-got {
+  background: var(--got);
+}
+
+.ctl-reveal.is-pass {
+  background: var(--pass);
+}
+
+.ctl-reveal-label {
+  font-size: var(--t-xl);
+  font-weight: 900;
+  font-stretch: 75%;
+}
+
+.ctl-reveal-word {
+  max-width: 100%;
+  font-family: var(--marker);
+  font-size: clamp(2.75rem, 14vmin + 2vw, 8rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+/* Scale-only stamp: the Word is fully opaque from the first frame of the short reveal. */
+@media (prefers-reduced-motion: no-preference) {
+  .ctl-reveal-word {
+    animation: ctl-stamp 180ms var(--ease);
+  }
+}
+
+@keyframes ctl-stamp {
+  from {
+    transform: scale(1.12) rotate(-2deg);
+  }
+}
+
+/* ---------- Recap ---------- */
+
+.ctl-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ctl-score-cat {
+  color: var(--muted);
+  font-size: var(--t-lg);
+  font-weight: 700;
+}
+
+.ctl-score-num {
+  color: var(--sticky);
+  font-size: clamp(6rem, 32vw, 10rem);
+  font-weight: 900;
+  font-stretch: 62%;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.ctl-score-sub {
+  font-size: var(--t-lg);
+  font-weight: 600;
+}
+
+.ctl-pb {
+  margin-top: var(--s-3);
+  color: var(--got);
+  font-size: var(--t-lg);
+  font-weight: 800;
+}
+
+.ctl-words {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: 0;
+  list-style: none;
+  font-size: var(--t-lg);
+}
+
+.ctl-words li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+}
+
+.ctl-mark {
+  width: 1.25em;
+  flex: none;
+  font-weight: 900;
+  text-align: center;
+}
+
+.ctl-words .is-got .ctl-mark {
+  color: var(--got);
+}
+
+.ctl-words .is-pass .ctl-mark {
+  color: var(--pass);
+}
+
+.ctl-words .is-pass .ctl-word,
+.ctl-words .is-unfinished {
+  color: var(--muted);
+}
+
+.ctl-recap-result,
+.ctl-recap-again {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.ctl-done {
+  margin-top: var(--s-4);
+}
+
+/* ---------- Connection ---------- */
+
+.ctl-reconnecting {
+  position: fixed;
+  z-index: 10;
+  bottom: var(--ctl-gutter-b);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--radius);
+  background: rgba(28, 31, 92, 0.75);
+  color: var(--paper);
+  font-size: var(--t-sm);
+  pointer-events: none;
+}
+
+/* ---------- Landscape phones: everything above the fold ---------- */
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .ctl-page {
+    max-width: 60rem;
+    gap: var(--s-3);
+  }
+
+  .ctl-title {
+    font-size: var(--t-lg);
+  }
+
+  .ctl-status {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2) var(--s-4);
+    font-size: var(--t-md);
+  }
+
+  .ctl-status .btn {
+    width: auto;
+  }
+
+  /* Join: note on the left, nickname and Join on the right. */
+  .ctl-join {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    column-gap: var(--s-6);
+    align-items: center;
+  }
+
+  .ctl-join .ctl-logo {
+    grid-column: 1 / -1;
+  }
+
+  /* Inset so the rotated corners stay inside the logo's gutter. */
+  .ctl-join-note,
+  .ctl-message-note {
+    margin: var(--s-3) var(--s-2) 0;
+    padding: var(--s-5);
+  }
+
+  .ctl-join-form {
+    margin-top: 0;
+    gap: var(--s-3);
+  }
+
+  /* Category picker: three compact notes in a row. */
+  .ctl-cats {
+    flex-direction: row;
+    gap: var(--s-4);
+    padding: var(--s-3) var(--s-1) var(--s-1);
+  }
+
+  .ctl-cat {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    gap: var(--s-1);
+    padding: var(--s-4) var(--s-3) var(--s-3);
+  }
+
+  .ctl-cat-name {
+    font-size: var(--t-lg);
+  }
+
+  .ctl-cat-meta {
+    flex-direction: column;
+    gap: 0;
+    font-size: var(--t-sm);
+  }
+
+  /* Recap: result on the left, play again on the right. */
+  .ctl-recap {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    grid-template-rows: auto 1fr;
+    column-gap: var(--s-6);
+    row-gap: var(--s-3);
+    align-items: start;
+  }
+
+  .ctl-recap .ctl-logo {
+    grid-column: 1 / -1;
+  }
+
+  .ctl-recap-result,
+  .ctl-recap-again {
+    gap: var(--s-3);
+  }
+
+  .ctl-score-num {
+    font-size: 5rem;
+  }
+
+  .ctl-pb {
+    margin-top: var(--s-1);
+    font-size: var(--t-md);
+  }
+
+  .ctl-words {
+    display: block;
+    columns: 2;
+    column-gap: var(--s-4);
+    font-size: var(--t-sm);
+  }
+
+  .ctl-words li {
+    break-inside: avoid;
+  }
+
+  .ctl-done {
+    margin-top: 0;
+  }
+}
