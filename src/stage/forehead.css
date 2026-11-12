@@ -1,0 +1,164 @@
+/* PAL forehead (Clue mode): a phone held sideways on the PAL's head, over the top-centre of the 16:9 hero.
+   A fixed spot, not head tracking: tune --forehead-top / --forehead-width to the Clue PAL's face.
+   The bottom edge should sit about at the hairline, never over the eyes. The screen copies the Controller's look. */
+
+.forehead {
+  /* % of the hero box. Negative top tucks the phone's top under the hero's top edge, so it reads as resting on the head. */
+  --forehead-top: -2%;
+  --forehead-width: 28%;
+  /* How far a tip turns: enough to read as a nod, little enough that the flash stays readable. */
+  --forehead-tip: 38deg;
+  --forehead-frame: #0d0e2b;
+
+  position: absolute;
+  z-index: 2;
+  top: var(--forehead-top);
+  left: 50%;
+  width: var(--forehead-width);
+  transform: translateX(-50%);
+  perspective: 60rem;
+  pointer-events: none;
+}
+
+/* Landscape phone: ~19.5:9 body. Sizes inside are in cqw of the phone, so it scales with the hero. */
+.forehead-phone {
+  position: relative;
+  container-type: inline-size;
+  aspect-ratio: 2.1;
+  padding: 3.2% 5.5%;
+  border-radius: 9% / 19%;
+  background: var(--forehead-frame);
+  box-shadow:
+    0 0.6cqw 0 0 rgba(255, 255, 255, 0.08) inset,
+    0 1.2rem 2rem -0.6rem rgba(0, 0, 0, 0.55);
+  /* Rests on the head: tips pivot on the bottom edge. */
+  transform-origin: 50% 100%;
+}
+
+/* Camera pill on the left bezel, so it reads as a phone held sideways. */
+.forehead-phone::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 2%;
+  width: 1.2%;
+  height: 16%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-50%);
+}
+
+.forehead-screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1cqw;
+  padding: 2cqw 4cqw;
+  overflow: hidden;
+  border-radius: 4cqw;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: center;
+  line-height: 1.05;
+}
+
+/* Countdown and Time's up: the Controller's countdown look (sticky numbers on ink). */
+.forehead-screen.is-countdown,
+.forehead-screen.is-timesUp {
+  background: var(--ink);
+  color: var(--sticky);
+}
+
+.forehead-screen.is-got {
+  background: var(--got);
+}
+
+.forehead-screen.is-pass {
+  background: var(--pass);
+}
+
+.forehead-word {
+  max-width: 100%;
+  font-family: var(--marker);
+  font-size: 13cqw;
+  overflow-wrap: anywhere;
+}
+
+.forehead-screen.is-flash .forehead-word {
+  font-size: 11cqw;
+}
+
+/* Same as .ctl-reveal-label. */
+.forehead-label {
+  font-size: 6.5cqw;
+  font-weight: 900;
+  font-stretch: 75%;
+  line-height: 1;
+}
+
+.forehead-count,
+.forehead-timesup {
+  font-weight: 900;
+  font-stretch: 62%;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.9;
+}
+
+.forehead-count {
+  font-size: 30cqw;
+}
+
+.forehead-timesup {
+  font-size: 15cqw;
+  font-stretch: 75%;
+}
+
+/* Motion only when allowed: with reduced motion the phone never turns, the colour flash and text still show. */
+@media (prefers-reduced-motion: no-preference) {
+  .forehead {
+    animation: forehead-raise 320ms var(--ease) both;
+  }
+
+  .forehead-phone {
+    transition: transform 160ms var(--ease);
+  }
+
+  .forehead-phone.tip-forward {
+    transform: rotateX(calc(-1 * var(--forehead-tip)));
+  }
+
+  .forehead-phone.tip-back {
+    transform: rotateX(var(--forehead-tip));
+  }
+
+  .forehead-count {
+    animation: forehead-pop 400ms var(--ease);
+  }
+
+  .forehead-screen.is-flash .forehead-word {
+    animation: forehead-stamp 180ms var(--ease);
+  }
+}
+
+/* A friend raising the phone to their forehead. */
+@keyframes forehead-raise {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(35%);
+  }
+}
+
+@keyframes forehead-pop {
+  from {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+@keyframes forehead-stamp {
+  from {
+    transform: scale(1.12) rotate(-2deg);
+  }
+}
