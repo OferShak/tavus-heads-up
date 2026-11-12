@@ -76,7 +76,7 @@ The PAL's Got it / Pass in Clue mode (a tool call), made only on the Player's sp
 _Avoid_: auto-score, PAL-judged
 
 **Heard it**:
-The moment the PAL hears the Player say the right Word (PAL tool call); it feeds Training stats only, never scoring. The PAL's call counts only when the Player's own words (their transcribed speech) say the current Word.
+The moment the PAL hears the Player say the right Word (PAL tool call); it feeds Training stats only, never scoring. The PAL's call is dropped when the Player's own words (their transcribed speech) show they said an already-tilted Word instead; a Got it tilt on a Word the Player's words say is Heard it even without the call.
 _Avoid_: correct guess, PAL-judged
 
 **Tilt nudge**:
