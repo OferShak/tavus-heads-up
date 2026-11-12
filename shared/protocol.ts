@@ -29,6 +29,10 @@ export interface PlayerSummary {
   mostPassed: { word: string; passes: number }[];
   /** Lifetime Tilt slips (Pass after Heard it + Got it never heard). */
   tiltSlips: number;
+  /** Lifetime Tilt slips that were a Pass after Heard it. */
+  passedAfterHeard: number;
+  /** Lifetime Tilt slips that were a Got it the PAL never heard. With passedAfterHeard, at most tiltSlips: slips from before the split was tracked (beyond the last 50 Rounds) can't be attributed. */
+  gotUnheard: number;
 }
 
 /** Role-filtered snapshot of the Room. The current Word goes to both: the Controller renders it as the Word QR, the Stage needs it for the fallback injection and the leak guard (it never displays it). */
