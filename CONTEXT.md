@@ -1,6 +1,6 @@
 # Over My Head
 
-A practice trainer for the forehead guessing party game: the Player holds a phone to their forehead showing a secret Word, and a Tavus PAL (real-time video AI) plays the friends giving clues, so the Player can train to beat their real friends. A stretch Clue mode flips the roles: the Player gives clues and the PAL guesses. Mechanics mirror the real game; name, decks and look are our own. Built as a Tavus Forward Deployed Engineer take-home.
+A practice trainer for the forehead guessing party game: the Player holds a phone to their forehead showing a secret Word, and a Tavus PAL (real-time video AI) plays the friends giving clues, so the Player can train to beat their real friends. Clue mode flips the roles: the Player gives clues and the PAL guesses. Mechanics mirror the real game; name, decks and look are our own. Built as a Tavus Forward Deployed Engineer take-home.
 
 ## Language
 
@@ -44,7 +44,7 @@ The Tavus video AI playing the Player's friends; gives clues in Guess mode, gues
 _Avoid_: bot, avatar, replica, persona
 
 **Mode**:
-Which side of the game the Player is training: **Guess mode** (Player guesses, PAL gives clues) or **Clue mode** (Player gives clues, PAL guesses). Clue mode is a stretch goal.
+Which side of the game the Player is training: **Guess mode** (Player guesses, PAL gives clues) or **Clue mode** (Player gives clues, PAL guesses).
 _Avoid_: reverse mode, flip mode, PAL guesses
 
 **Category**:
