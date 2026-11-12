@@ -38,7 +38,16 @@ A practice trainer for the forehead guessing party game: train against a Tavus P
 
 **Tavus minutes are a budget.** I chose to start the conversation when a phone joins, not when the page opens, and end it on Done, both screens leaving, or Tavus timeouts. A global cap with expiring leases means a public URL can't drain minutes, and Tavus' concurrency error becomes "PAL is busy".
 
-## Clue mode
+## How it plays
+
+### Guess mode
+
+- **Anna gives the Clues, you guess.** The Word is a QR on the phone on your forehead: the laptop camera reads it, you can't.
+- **You tilt.** Down = Got it, up = Pass. When Anna hears you say the Word she shouts "yes, tilt it!".
+- **The Reveal shows the Word.** After each tilt the phone shows it in big text. If your tilt disagrees with what Anna heard (a Tilt slip), she teases you. The tilt still stands.
+- **Silence nudges.** Go quiet and Anna gives a fresh Clue, each more obvious, ending in "just pass it!".
+
+### Clue mode
 
 - **You give the Clues, Maya guesses.** The Word sits on a phone drawn on Maya's forehead (the PAL forehead): you can read it, she can't. The camera stays on, so miming counts.
 - **Maya tilts on your say-so.** Say "yes, got it!" or "skip it" and she tips the phone down or up. You can lie, like with real friends.
