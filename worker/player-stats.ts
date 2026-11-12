@@ -15,12 +15,22 @@ interface StatsData {
   passCounts: Record<string, number>;
   /** wordId → word, for showing most-passed Words. */
   wordNames: Record<string, string>;
-  /** Lifetime Tilt slips. Missing in data stored before this field existed (filled from EMPTY on load). */
+  /** Lifetime Tilt slips, both kinds. Missing in data stored before this field existed (filled from EMPTY on load). */
   tiltSlips: number;
+  /** Lifetime Tilt slips that were a Pass on a Word the PAL heard. */
+  passedAfterHeard: number;
+  /** Lifetime Tilt slips that were a Got it on a Word the PAL never heard. */
+  gotUnheard: number;
+  /** Last 50 Rounds. Entries stored before Tilt slips existed lack passedAfterHeard / gotUnheard. */
   recent: (RoundSummary & { at: number })[];
 }
 
-const EMPTY: StatsData = {
+type SlipSplit = 'passedAfterHeard' | 'gotUnheard';
+/** StatsData as stored: the split slip counters are missing in data stored before they existed. */
+export type StoredStats = Omit<StatsData, SlipSplit> & Partial<Pick<StatsData, SlipSplit>>;
+
+/** Defaults for fields missing in stored data. The split slip counters are left out on purpose so backfillSlips can spot old data. */
+const EMPTY: Omit<StatsData, SlipSplit> = {
   nickname: '',
   roundsPlayed: 0,
   bests: {},
@@ -34,6 +44,18 @@ const EMPTY: StatsData = {
   recent: [],
 };
 
+/**
+ * Data stored before the lifetime split existed only has the merged tiltSlips: derive each kind from `recent`
+ * (the last 50 Rounds). Older slips can't be attributed, so passedAfterHeard + gotUnheard <= tiltSlips.
+ */
+export function backfillSlips(d: StoredStats): StatsData {
+  if (d.passedAfterHeard !== undefined && d.gotUnheard !== undefined) return d as StatsData;
+  const sum = (k: SlipSplit) => d.recent.reduce((n, r) => n + ((r[k] as number | undefined) ?? 0), 0);
+  const passedAfterHeard = sum('passedAfterHeard');
+  const gotUnheard = sum('gotUnheard');
+  return { ...d, passedAfterHeard, gotUnheard, tiltSlips: Math.max(d.tiltSlips, passedAfterHeard + gotUnheard) };
+}
+
 export interface RecordResult {
   summary: PlayerSummary;
   personalBest: { category: CategoryId; score: number; previous: number | null } | null;
@@ -41,7 +63,7 @@ export interface RecordResult {
 
 export class PlayerStats extends DurableObject<Env> {
   private load(): StatsData {
-    return { ...EMPTY, ...(this.ctx.storage.kv.get<StatsData>('stats') ?? {}) };
+    return backfillSlips({ ...EMPTY, ...(this.ctx.storage.kv.get<StoredStats>('stats') ?? {}) });
   }
 
   private save(d: StatsData) {
@@ -89,6 +111,8 @@ export class PlayerStats extends DurableObject<Env> {
       passCounts,
       wordNames,
       tiltSlips: d.tiltSlips + r.passedAfterHeard + r.gotUnheard,
+      passedAfterHeard: d.passedAfterHeard + r.passedAfterHeard,
+      gotUnheard: d.gotUnheard + r.gotUnheard,
       recent: [...d.recent, { ...r, at }].slice(-50),
     };
     this.save(next);
@@ -112,5 +136,7 @@ export function summarize(d: StatsData): PlayerSummary {
       .slice(0, 5)
       .map(([id, passes]) => ({ word: d.wordNames[id] ?? id, passes })),
     tiltSlips: d.tiltSlips,
+    passedAfterHeard: d.passedAfterHeard,
+    gotUnheard: d.gotUnheard,
   };
 }

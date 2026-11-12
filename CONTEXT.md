@@ -76,7 +76,7 @@ _Avoid_: wrong tilt, mistake
 Time from Heard it to the Player's Got it tilt.
 
 **Training stats**:
-Per-Player numbers across Rooms and Rounds (persist between visits): personal best per Category, Words per minute, Reaction lag, most-passed Words, Tilt slips.
+Per-Player numbers across Rooms and Rounds (persist between visits): personal best per Category, Words per minute, Reaction lag, most-passed Words, Tilt slips (in total and each kind separately).
 _Avoid_: analytics, metrics
 
 ## Relationships
@@ -86,7 +86,7 @@ _Avoid_: analytics, metrics
 - Each **Mode** has its own **PAL** (same face); changing **Mode** between **Rounds** swaps the **PAL**
 - A **Round** presents a sequence of **Words**; each ends as **Got it** or **Pass**
 - Only a tilt produces **Got it** / **Pass**; **Heard it** without a tilt triggers a **Tilt nudge**
-- A **Tilt slip** still scores as tilted; the **PAL** calls it out and **Training stats** count it
+- A **Tilt slip** still scores as tilted; the **PAL** calls it out and **Training stats** count it, keeping the two kinds (Pass after **Heard it**, Got it never heard) apart
 - The **Stage** decodes the **Word QR** from the camera and injects the **Word** into the **PAL**; if decoding fails, the **Room**'s copy is injected instead
 
 ## Example dialogue

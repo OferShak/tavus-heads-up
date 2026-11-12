@@ -126,7 +126,7 @@ describe('Room Durable Object', () => {
     expect(recap.lastSummary).toMatchObject({ gotIt: 1, passed: 1, qrDecoded: 1, heardCount: 2, passedAfterHeard: 1, gotUnheard: 0 });
     expect(recap.lastSummary!.words.map((w) => w.outcome)).toEqual(['got', 'pass', 'unfinished']);
     expect(recap.lastSummary!.words[1].slip).toBe('passed_after_heard');
-    expect(recap.stats).toMatchObject({ nickname: 'Ofer', roundsPlayed: 1, bests: { animals: 1 }, tiltSlips: 1 });
+    expect(recap.stats).toMatchObject({ nickname: 'Ofer', roundsPlayed: 1, bests: { animals: 1 }, tiltSlips: 1, passedAfterHeard: 1, gotUnheard: 0 });
     expect(recap.personalBest).toEqual({ category: 'animals', score: 1, previous: null });
 
     // Training stats persist per Player, across Rooms.

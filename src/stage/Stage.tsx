@@ -621,6 +621,10 @@ function PalPanel({ snap, hasVideo }: { snap: Snapshot; hasVideo: boolean }) {
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
+/** Tilt slips by kind, worded like the per-Word slip notes; zero kinds are left out ('' when there are none). */
+const slipSplit = (passedAfterHeard: number, gotUnheard: number) =>
+  [passedAfterHeard > 0 && `${passedAfterHeard} you said it`, gotUnheard > 0 && `${gotUnheard} not heard`].filter(Boolean).join(', ');
+
 function Recap({ snap }: { snap: Snapshot }) {
   const s = snap.lastSummary;
   if (!s) return null;
@@ -628,6 +632,8 @@ function Recap({ snap }: { snap: Snapshot }) {
   const pb = snap.personalBest;
   const best = stats?.bests[s.category];
   const qrTotal = s.qrDecoded + s.qrFallback;
+  // Lifetime split can sum to less than tiltSlips: slips from before it was tracked can't be attributed.
+  const allTimeSlips = stats ? slipSplit(stats.passedAfterHeard, stats.gotUnheard) : '';
 
   return (
     <section className="stage-recap" aria-label="Round recap">
@@ -690,7 +696,16 @@ function Recap({ snap }: { snap: Snapshot }) {
               <dt>Tilt slips</dt>
               <dd>
                 {s.passedAfterHeard + s.gotUnheard}
-                {stats?.tiltSlips != null && <span className="stage-dd-note"> of {stats.tiltSlips} all time</span>}
+                {s.passedAfterHeard + s.gotUnheard > 0 && (
+                  <span className="stage-dd-note"> ({slipSplit(s.passedAfterHeard, s.gotUnheard)})</span>
+                )}
+                {stats?.tiltSlips != null && (
+                  <span className="stage-dd-note">
+                    {' '}
+                    of {stats.tiltSlips} all time
+                    {allTimeSlips && ` (${allTimeSlips})`}
+                  </span>
+                )}
               </dd>
             </div>
             {stats && stats.mostPassed.length > 0 && (
