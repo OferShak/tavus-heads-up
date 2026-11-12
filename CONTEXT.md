@@ -26,8 +26,8 @@ The QR on the Controller encoding the current Word in Guess mode; unreadable to 
 _Avoid_: card, code
 
 **PAL forehead**:
-The spot above the PAL's video on the Stage where the Word is shown in Clue mode, like reading a friend's forehead; the PAL can't see it.
-_Avoid_: card, banner
+A phone drawn on the PAL's head at the top of its video on the Stage in Clue mode, its screen showing the Word, like the phone a friend holds to their forehead; it tips down (Got it) or up (Pass) on each PAL tilt. The PAL can't see it.
+_Avoid_: card, banner, PAL phone
 
 ### Game
 
@@ -126,6 +126,8 @@ _Avoid_: analytics, metrics
 - In **Guess mode**, **Silence nudges** happen only while the current **Word** is being clued and before **Heard it** (after it, **Tilt nudges** take over); they escalate: a fresh angle, then "sounds like" / rhymes, then "just pass it!" with one more **Clue**. Only a tilt still scores
 - The **Round** recap counts **Silence nudges** per **Word** and names **Freezes**; neither is a lifetime **Training stat**
 - In **Guess mode**, the **Stage** decodes the **Word QR** from the camera and injects the **Word** into the **PAL**; if decoding fails, the **Room**'s copy is injected instead
+- On a **PAL tilt**, the **PAL forehead** tips at once (before the **Room** accepts it, like the **Controller**) and flashes **Got it** / **Pass** with the finished **Word**, the same look and timing as the **Controller** after a **Guess mode** tilt, then shows the next **Word**; the flash is for the **Player** (the **PAL**'s **Reveal** is told, not shown)
+- The **PAL forehead** is up from the countdown (showing 3-2-1, like a friend raising the phone) until time's up (showing "Time's up"); there is none in the lobby or the **Round** recap
 - In **Clue mode**, the **Word** is shown only on the **PAL forehead** (the **Controller** never shows it); the **PAL** is never given the current **Word** (only its **Reveal** after a **PAL tilt**, where it may call out a lie), but still sees the **Player** through the camera, so faces and miming count as clues
 
 ## Example dialogue

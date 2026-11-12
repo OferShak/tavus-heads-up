@@ -41,6 +41,8 @@ export interface ClueDirectorDeps {
   reactions?: boolean;
   /** How the Reveal reaches the PAL. Default: REVEAL_STRATEGIES[REVEAL_STRATEGY]. */
   reveal?: RevealStrategy;
+  /** A PAL tilt was just sent to the Room (once per sent `pal_tilt`): the Stage tips the PAL forehead phone at once. */
+  onTilt?(outcome: Outcome): void;
 }
 
 /**
@@ -313,6 +315,7 @@ export class ClueDirector {
     if (action !== 'sent' || !outcome || !wordId) return;
     this.tiltSentFor = wordId;
     this.d.report({ t: 'pal_tilt', wordId, outcome });
+    this.d.onTilt?.(outcome);
   }
 
   private onStarted(who: Who, order: number) {
