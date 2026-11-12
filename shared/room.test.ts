@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COUNTDOWN_MS, ROUND_MS, type Word } from './game';
+import { COUNTDOWN_MS, FREEZE_NUDGES, ROUND_MS, type Word } from './game';
 import {
   applyTilt,
   beginPlay,
@@ -11,6 +11,7 @@ import {
   markHeard,
   markLeak,
   markNudge,
+  markSilenceNudge,
   nextAlarmAt,
   setPal,
   startRound,
@@ -204,5 +205,41 @@ describe('Tilt slips', () => {
     const s = tilt(playing('offline'), 'got', T0 + 5000);
     expect(s.round!.results[0].palReady).toBe(false);
     expect(endRound(s).lastSummary).toMatchObject({ gotIt: 1, gotUnheard: 0 });
+  });
+});
+
+describe('Silence nudges', () => {
+  const tilt = (s: RoomState, outcome: 'got' | 'pass', at: number) => {
+    const r = applyTilt(s, s.round!.current!.wordId, outcome, at, draw);
+    if (!r.accepted) throw new Error();
+    return r.state;
+  };
+  const nudge = (s: RoomState, wordId: string, n: number) => {
+    for (let i = 0; i < n; i++) s = markSilenceNudge(s, wordId);
+    return s;
+  };
+
+  it('counts per current Word and carries the count onto the result', () => {
+    let s = markSilenceNudge(playing(), 'w0');
+    expect(s.round!.current!.silenceNudges).toBe(1);
+    expect(markSilenceNudge(s, 'w9')).toBe(s); // not the current Word
+    s = tilt(s, 'pass', T0 + 5000);
+    expect(s.round!.results[0].silenceNudges).toBe(1);
+    expect(markSilenceNudge(s, 'w0')).toBe(s); // already tilted
+    const done = endRound(s);
+    expect(markSilenceNudge(done, 'w1')).toBe(done); // outside play
+  });
+
+  it('totals Silence nudges and flags a Freeze at FREEZE_NUDGES', () => {
+    let s = nudge(playing(), 'w0', FREEZE_NUDGES - 1);
+    s = tilt(s, 'got', T0 + 5000);
+    s = nudge(s, 'w1', FREEZE_NUDGES);
+    s = tilt(s, 'pass', T0 + 9000);
+    s = nudge(s, 'w2', FREEZE_NUDGES + 1); // unfinished at the buzzer
+    const sum = endRound(s).lastSummary!;
+    expect(sum.silenceNudges).toBe(3 * FREEZE_NUDGES);
+    expect(sum.words.map((w) => w.freeze)).toEqual([undefined, true, true]);
+    expect('freeze' in sum.words[0]).toBe(false);
+    expect(endRound(playing()).lastSummary!.silenceNudges).toBe(0);
   });
 });

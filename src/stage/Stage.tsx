@@ -735,6 +735,10 @@ function Recap({ snap }: { snap: Snapshot }) {
               <dd>{s.nudges}</dd>
             </div>
             <div>
+              <dt>Silence nudges</dt>
+              <dd>{s.silenceNudges ?? 0}</dd>
+            </div>
+            <div>
               <dt>PAL leaks</dt>
               <dd>{s.leaks}</dd>
             </div>

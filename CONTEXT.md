@@ -78,6 +78,10 @@ The PAL's spoken reminder to tilt down when Heard it happened but no tilt follow
 A fresh Clue the PAL gives unprompted when the Player has gone quiet too long after a Clue, like friends who never let dead air sit.
 _Avoid_: hint, extra hint, re-clue
 
+**Freeze**:
+A Word the Player went so quiet on that the PAL reached the "just pass it!" Silence nudge (the third); the Round recap teases Freezes.
+_Avoid_: stuck word, stall
+
 **Tilt slip**:
 A tilt that disagrees with Heard it: a Pass on a Word the PAL heard the Player say, or a Got it on a Word the PAL (in the call) never heard.
 _Avoid_: wrong tilt, mistake
@@ -100,7 +104,7 @@ _Avoid_: analytics, metrics
 - Only a tilt produces **Got it** / **Pass**; **Heard it** without a tilt triggers a **Tilt nudge**
 - A **Tilt slip** still scores as tilted; the **PAL** calls it out and **Training stats** count it, keeping the two kinds (Pass after **Heard it**, Got it never heard) apart
 - In **Guess mode**, **Silence nudges** happen only while the current **Word** is being clued and before **Heard it** (after it, **Tilt nudges** take over); they escalate: a fresh angle, then "sounds like" / rhymes, then "just pass it!" with one more **Clue**. Only a tilt still scores
-- The **Round** recap counts **Silence nudges** per **Word**; they are not a lifetime **Training stat**
+- The **Round** recap counts **Silence nudges** per **Word** and names **Freezes**; neither is a lifetime **Training stat**
 - In **Guess mode**, the **Stage** decodes the **Word QR** from the camera and injects the **Word** into the **PAL**; if decoding fails, the **Room**'s copy is injected instead
 - In **Clue mode**, the **Word** is shown only on the **PAL forehead** (the **Controller** never shows it); the **PAL** is never given the **Word**, but still sees the **Player** through the camera, so faces and miming count as clues
 

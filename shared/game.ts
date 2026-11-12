@@ -15,6 +15,12 @@ export const NUDGE_DELAYS_MS = [2_500, 6_000] as const;
 export const HEARD_CONFIRM_MS = 1_500;
 /** How long the Controller shows the revealed Word after a tilt. */
 export const REVEAL_MS = 600;
+/** Silence after a Clue (PAL or Player stopped speaking) before the PAL gives a Silence nudge. */
+export const SILENCE_NUDGE_MS = 2_500;
+/** After injecting a Word or firing a Silence nudge: if the PAL hasn't spoken by then, push it again. */
+export const FIRST_CLUE_RESCUE_MS = 4_000;
+/** Silence nudges on one Word that make it a Freeze in the Round recap. */
+export const FREEZE_NUDGES = 3;
 
 export type Level = 'easy' | 'medium' | 'hard';
 export type CategoryId = 'animals' | 'food' | 'jobs';

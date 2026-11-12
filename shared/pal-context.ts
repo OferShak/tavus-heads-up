@@ -50,12 +50,14 @@ export function recapContext(nickname: string, stats: PlayerSummary | null, s: R
   const slipped = (slip: NonNullable<RoundSummary['words'][number]['slip']>) => s.words.filter((w) => w.slip === slip).map((w) => w.word);
   const passedAfterHeard = slipped('passed_after_heard');
   const gotUnheard = slipped('got_unheard');
+  const froze = s.words.filter((w) => w.freeze).map((w) => w.word);
   return [
     `GAME STATE: the ${CATEGORIES[s.category].name} Round just ended. There is NO secret word right now.`,
     `They got ${s.gotIt} and passed ${s.passed}${personalBest ? ' (a new personal best!)' : ''}.`,
     passed.length > 0 && `Passed words (fine to say now): ${passed.join(', ')}.`,
     passedAfterHeard.length > 0 && `Passed even though they'd already said it: ${passedAfterHeard.join(', ')}. Tease them about it.`,
     gotUnheard.length > 0 && `Tilted Got it but you never heard them say it: ${gotUnheard.join(', ')}. Call it out playfully.`,
+    froze.length > 0 && `They froze on: ${froze.join(', ')} (you had to tell them to pass). Tease them about it.`,
     playerBlock(nickname, stats),
   ]
     .filter(Boolean)

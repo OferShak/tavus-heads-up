@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HEARD_CONFIRM_MS, NUDGE_DELAYS_MS, QR_FALLBACK_MS } from '../../shared/game';
+import {
+  COUNTDOWN_MS,
+  FIRST_CLUE_RESCUE_MS,
+  HEARD_CONFIRM_MS,
+  NUDGE_DELAYS_MS,
+  QR_FALLBACK_MS,
+  SILENCE_NUDGE_MS,
+} from '../../shared/game';
 import type { ClientMsg, RoomEvent, Snapshot } from '../../shared/protocol';
 import { encodeWordQr } from '../../shared/qr';
 import type { Phase, RoundSummary } from '../../shared/room';
@@ -12,6 +19,10 @@ import {
   PREV_WORD_CORRECTION,
   ROUND_END_PROMPT,
   ROUND_START_PROMPT,
+  SILENCE_NUDGE_FRESH_PROMPT,
+  SILENCE_NUDGE_PASS_PROMPT,
+  SILENCE_NUDGE_RHYME_PROMPT,
+  silenceNudgePrompt,
   toolName,
 } from './director';
 
@@ -67,6 +78,7 @@ const summary: RoundSummary = {
   clueLatencyMs: null,
   leaks: 0,
   nudges: 0,
+  silenceNudges: 0,
   passedAfterHeard: 0,
   gotUnheard: 0,
 };
@@ -272,7 +284,8 @@ describe('PalDirector', () => {
       vi.advanceTimersByTime(20_000);
       expect(reports.filter((r) => r.t === 'heard')).toEqual([]);
       expect(reports.filter((r) => r.t === 'nudge')).toEqual([]);
-      expect(types()).toEqual(['conversation.interrupt', 'conversation.echo']);
+      // The fake PAL never speaks, so the silence clock only sends first-clue rescues.
+      expect(types().filter((t) => t !== 'conversation.respond')).toEqual(['conversation.interrupt', 'conversation.echo']);
     });
 
     it('an older utterance of the previous Word followed by a newer miss still uses the hold', () => {
@@ -345,7 +358,8 @@ describe('PalDirector', () => {
       d.onTavusEvent(toolCall);
       vi.advanceTimersByTime(20_000);
       expect(reports).toEqual([]);
-      expect(types()).toEqual(['conversation.interrupt']);
+      // The fake PAL never speaks, so the silence clock only sends first-clue rescues.
+      expect(types().filter((t) => t !== 'conversation.respond')).toEqual(['conversation.interrupt']);
     });
 
     it('trusts the tool call when the call never delivered any user utterance (fallback)', () => {
@@ -541,6 +555,231 @@ describe('PalDirector', () => {
     d.onPalJoined();
     expect(types()).toEqual(['conversation.overwrite_llm_context']);
     expect(String(sent[0].props?.context)).toContain('NO secret word');
+  });
+
+  describe('Silence nudges', () => {
+    const ev = (event_type: string, role?: string) => d.onTavusEvent({ event_type, ...(role ? { properties: { role } } : {}) });
+    const palStarts = () => ev('conversation.started_speaking', 'pal');
+    const palStops = () => ev('conversation.stopped_speaking', 'pal');
+    /** The PAL gives a Clue: the clock starts when it stops speaking. */
+    const palClues = () => {
+      palStarts();
+      palStops();
+    };
+    const userSays = (speech: string) =>
+      d.onTavusEvent({ event_type: 'conversation.utterance', properties: { role: 'user', speech } });
+    const silence = () => reports.filter((r) => r.t === 'silence_nudge');
+    const responds = () => sent.filter((s) => s.type === 'conversation.respond').map((s) => s.props?.text);
+
+    it('nudges SILENCE_NUDGE_MS after the PAL stops speaking, with the fresh-angle prompt', () => {
+      playW1();
+      palClues();
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS - 1);
+      expect(silence()).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(silence()).toEqual([{ t: 'silence_nudge', wordId: 'w1' }]);
+      expect(responds()).toEqual([SILENCE_NUDGE_FRESH_PROMPT]);
+    });
+
+    it('accepts the legacy replica/user speaking events', () => {
+      playW1();
+      ev('conversation.replica.started_speaking');
+      ev('conversation.replica.stopped_speaking');
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS - 1);
+      ev('conversation.user.started_speaking');
+      vi.advanceTimersByTime(10_000);
+      expect(silence()).toEqual([]);
+      ev('conversation.user.stopped_speaking');
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS);
+      expect(silence()).toHaveLength(1);
+    });
+
+    it('Player speech resets the clock: started clears it, stopped or an utterance re-arms it', () => {
+      playW1();
+      palClues();
+      vi.advanceTimersByTime(2_000);
+      ev('conversation.started_speaking', 'user');
+      vi.advanceTimersByTime(10_000);
+      expect(silence()).toEqual([]);
+      ev('conversation.stopped_speaking', 'user');
+      vi.advanceTimersByTime(2_000);
+      userSays('a horse?');
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS - 1);
+      expect(silence()).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(silence()).toHaveLength(1);
+    });
+
+    it('a bracketed user utterance (our own prompt echoed back) does not reset the clock', () => {
+      playW1();
+      palClues();
+      vi.advanceTimersByTime(2_000);
+      userSays('[New word. Give your first clue now.]');
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS - 2_000);
+      expect(silence()).toHaveLength(1);
+    });
+
+    it('escalates: fresh angle, then "sounds like", then "just pass it!" repeating; never the Word', () => {
+      playW1();
+      palClues();
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS);
+      palClues();
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS);
+      palClues();
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS);
+      palClues();
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS);
+      expect(silence()).toHaveLength(4);
+      expect(responds()).toEqual([
+        SILENCE_NUDGE_FRESH_PROMPT,
+        SILENCE_NUDGE_RHYME_PROMPT,
+        SILENCE_NUDGE_PASS_PROMPT,
+        SILENCE_NUDGE_PASS_PROMPT,
+      ]);
+      expect(silenceNudgePrompt(7)).toBe(SILENCE_NUDGE_PASS_PROMPT);
+      for (const p of [SILENCE_NUDGE_FRESH_PROMPT, SILENCE_NUDGE_RHYME_PROMPT, SILENCE_NUDGE_PASS_PROMPT]) {
+        expect(p).toMatch(/^\[.*\]$/);
+        expect(p).toContain('Never say the word or any part of it.');
+        expect(p.toLowerCase()).not.toContain('giraffe');
+      }
+      expect(SILENCE_NUDGE_PASS_PROMPT).toContain('just pass it!');
+    });
+
+    it('a nudge the PAL never answers is followed by the next one after FIRST_CLUE_RESCUE_MS', () => {
+      playW1();
+      palClues();
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS);
+      expect(silence()).toHaveLength(1);
+      vi.advanceTimersByTime(FIRST_CLUE_RESCUE_MS - 1);
+      expect(silence()).toHaveLength(1);
+      vi.advanceTimersByTime(1);
+      expect(silence()).toHaveLength(2);
+      expect(responds()).toEqual([SILENCE_NUDGE_FRESH_PROMPT, SILENCE_NUDGE_RHYME_PROMPT]);
+    });
+
+    it('first-clue rescue: a mute PAL after injection gets NEW_WORD_PROMPT again, not reported or counted', () => {
+      playW1();
+      vi.advanceTimersByTime(FIRST_CLUE_RESCUE_MS - 1);
+      expect(responds()).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(responds()).toEqual([NEW_WORD_PROMPT]);
+      vi.advanceTimersByTime(FIRST_CLUE_RESCUE_MS);
+      expect(responds()).toEqual([NEW_WORD_PROMPT, NEW_WORD_PROMPT]);
+      expect(reports).toEqual([]);
+      // Once the PAL speaks, the ladder starts at n=1.
+      palClues();
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS);
+      expect(silence()).toEqual([{ t: 'silence_nudge', wordId: 'w1' }]);
+      expect(responds().at(-1)).toBe(SILENCE_NUDGE_FRESH_PROMPT);
+    });
+
+    it('the rejoin re-injection arms the first-clue rescue like an injection', () => {
+      d = make();
+      d.onSnapshot(snap('lobby'));
+      d.onSnapshot(snap('playing', { wordId: 'w1', word: 'giraffe' }));
+      vi.advanceTimersByTime(QR_FALLBACK_MS);
+      d.onPalJoined();
+      sent = [];
+      reports = [];
+      vi.advanceTimersByTime(FIRST_CLUE_RESCUE_MS);
+      expect(responds()).toEqual([NEW_WORD_PROMPT]);
+      expect(reports).toEqual([]);
+    });
+
+    it('stops for good after Heard it (Tilt nudges take over)', () => {
+      playW1();
+      palClues();
+      d.onTavusEvent(toolCall);
+      palClues();
+      userSays('um');
+      vi.advanceTimersByTime(20_000);
+      expect(silence()).toEqual([]);
+      expect(reports.filter((r) => r.t === 'nudge')).toHaveLength(NUDGE_DELAYS_MS.length);
+    });
+
+    it('holds while a word_guessed call is pending, and re-arms when it is rejected', () => {
+      playW1();
+      palClues();
+      userSays('a zebra?');
+      vi.advanceTimersByTime(2_000);
+      d.onTavusEvent(toolCall); // held: the Player never said giraffe
+      vi.advanceTimersByTime(HEARD_CONFIRM_MS - 1);
+      expect(silence()).toEqual([]);
+      vi.advanceTimersByTime(1); // rejected
+      expect(types()).toContain('conversation.interrupt');
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS - 1);
+      expect(silence()).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(silence()).toEqual([{ t: 'silence_nudge', wordId: 'w1' }]);
+    });
+
+    it('never nudges in the tilt→injection gap; the gap echo does not count as the PAL clueing', () => {
+      playW1();
+      palClues();
+      vi.advanceTimersByTime(2_000);
+      d.onSnapshot(snap('playing', { wordId: 'w2', word: 'penguin' }), tiltEvent('w1', 'giraffe', 'got'));
+      palClues(); // the reaction echo
+      ev('conversation.stopped_speaking', 'user');
+      vi.advanceTimersByTime(QR_FALLBACK_MS - 1);
+      expect(silence()).toEqual([]);
+      vi.advanceTimersByTime(1); // injected
+      vi.advanceTimersByTime(FIRST_CLUE_RESCUE_MS);
+      expect(silence()).toEqual([]);
+      expect(responds().at(-1)).toBe(NEW_WORD_PROMPT); // a rescue, not a nudge
+    });
+
+    it('the reaction echo ending just after injection keeps the rescue at FIRST_CLUE_RESCUE_MS', () => {
+      playW1();
+      d.onSnapshot(snap('playing', { wordId: 'w2', word: 'penguin' }), tiltEvent('w1', 'giraffe', 'pass'));
+      palStarts(); // "Skip it!" echo, still playing
+      d.onQr(encodeWordQr('w2', 'penguin'));
+      sent = [];
+      reports = [];
+      vi.advanceTimersByTime(100);
+      palStops(); // the echo ends after injection
+      vi.advanceTimersByTime(SILENCE_NUDGE_MS);
+      expect(responds()).toEqual([]);
+      vi.advanceTimersByTime(FIRST_CLUE_RESCUE_MS - SILENCE_NUDGE_MS - 1);
+      expect(responds()).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(responds()).toEqual([NEW_WORD_PROMPT]);
+      expect(silence()).toEqual([]);
+    });
+
+    it('never nudges outside playing: lobby, countdown, recap', () => {
+      palClues();
+      vi.advanceTimersByTime(20_000);
+      d.onSnapshot(snap('countdown'), { kind: 'round_start' });
+      palClues();
+      vi.advanceTimersByTime(COUNTDOWN_MS);
+      playW1();
+      palClues();
+      vi.advanceTimersByTime(1_000);
+      d.onSnapshot(snap('recap', undefined, { lastSummary: summary }), { kind: 'round_end' });
+      sent = [];
+      palClues();
+      userSays('that was hard');
+      vi.advanceTimersByTime(20_000);
+      expect(silence()).toEqual([]);
+      expect(sent).toEqual([]);
+    });
+  });
+
+  it('recap names Freeze words only when there are some', () => {
+    const recapCtx = (words: RoundSummary['words']) => {
+      d.onSnapshot(snap('playing', { wordId: 'w1', word: 'giraffe' }));
+      sent = [];
+      d.onSnapshot(snap('recap', undefined, { lastSummary: { ...summary, words } }), { kind: 'round_end' });
+      return String(sent.find((s) => s.type === 'conversation.overwrite_llm_context')?.props?.context);
+    };
+    const froze = recapCtx([
+      { wordId: 'w1', word: 'giraffe', outcome: 'pass', freeze: true },
+      { wordId: 'w2', word: 'penguin', outcome: 'got' },
+      { wordId: 'w3', word: 'zebra', outcome: 'unfinished', freeze: true },
+    ]);
+    expect(froze).toContain('They froze on: giraffe, zebra (you had to tell them to pass). Tease them about it.');
+    expect(froze).not.toMatch(/penguin \(/);
+    expect(recapCtx([{ wordId: 'w1', word: 'giraffe', outcome: 'pass' }])).not.toContain('froze');
   });
 });
 
