@@ -1,12 +1,16 @@
 // The Stage: the laptop/TV screen. Shows the Join QR, runs the PAL call, decodes the Word QR from the
-// camera and drives the PAL through the PalDirector. It never displays the current Word.
+// camera and drives the PAL through the PalDirector (Guess mode) or the ClueDirector (Clue mode), routed by the
+// friend in the call. In Guess mode it never displays the current Word; in Clue mode it shows it on the PAL forehead.
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from 'react';
-import { CATEGORIES, ROUND_MS } from '../../shared/game';
+import { CATEGORIES, FRIENDS, ROUND_MS, type Mode } from '../../shared/game';
 import type { ClientMsg, RoomEvent, Snapshot } from '../../shared/protocol';
+import type { RoundSummary } from '../../shared/room';
 import { Qr } from '../lib/Qr';
 import { secondsLeft, useRoom, useTick } from '../lib/useRoom';
+import { ClueDirector, isRevealStrategyName, REVEAL_STRATEGIES, REVEAL_STRATEGY, type RevealStrategyName } from './clue-director';
 import { PalDirector, type TavusEvent } from './director';
+import { DirectorRouter, type SwapMeasure } from './director-router';
 import { usePalCall, type PalCallHandlers } from './pal-call';
 import { preloadScanner, startScanner, type ScanEngine } from './scanner';
 import './stage.css';
@@ -26,6 +30,8 @@ const DEBUG_EVENTS = 40;
 const params = new URLSearchParams(window.location.search);
 const DEBUG = params.has('debug');
 const REACTIONS = params.get('react') !== '0';
+/** Clue mode Reveal delivery, `?reveal=<name>` for the live spike (see REVEAL_STRATEGIES). */
+const REVEAL: RevealStrategyName = isRevealStrategyName(params.get('reveal')) ? (params.get('reveal') as RevealStrategyName) : REVEAL_STRATEGY;
 
 function parseJoinOverride(): string | null {
   const raw = params.get('join');
@@ -94,6 +100,12 @@ interface DebugState {
   events: DebugEvent[];
   engine: ScanEngine | 'loading';
   lastQr: string | null;
+  /** The last friend swap, measured on the Stage (a write-up number). */
+  swap: SwapMeasure | null;
+}
+
+function withEvent(d: DebugState, type: string, data: unknown): DebugState {
+  return { ...d, events: [{ id: Date.now() + Math.random(), type, json: JSON.stringify(data, null, 1) }, ...d.events].slice(0, DEBUG_EVENTS) };
 }
 
 // ---------- Room code ----------
@@ -209,20 +221,31 @@ export default function Stage() {
   const { code, failed, renew, retry } = useRoomCode();
   const camera = useCamera();
   const io = useRef<Io>(NO_IO);
-  const [director] = useState(
-    () =>
-      new PalDirector({
-        interact: (t, p) => io.current.interact(t, p),
-        report: (m) => io.current.report(m),
-        now: () => Date.now(),
-        setTimer: (fn, ms) => window.setTimeout(fn, ms),
-        clearTimer: (id) => window.clearTimeout(id as number),
-        reactions: REACTIONS,
-      }),
-  );
+  const [debug, setDebug] = useState<DebugState>({ events: [], engine: 'loading', lastQr: null, swap: null });
+  const [director] = useState(() => {
+    const interact = (t: string, p?: Record<string, unknown>) => io.current.interact(t, p);
+    const report = (m: ClientMsg) => io.current.report(m);
+    const now = () => Date.now();
+    const guess = new PalDirector({
+      interact,
+      report,
+      now,
+      setTimer: (fn, ms) => window.setTimeout(fn, ms),
+      clearTimer: (id) => window.clearTimeout(id as number),
+      reactions: REACTIONS,
+    });
+    const clue = new ClueDirector({
+      interact,
+      report,
+      now,
+      reactions: REACTIONS,
+      reveal: REVEAL_STRATEGIES[REVEAL],
+      log: DEBUG ? (label, data) => setDebug((d) => withEvent(d, label, data)) : undefined,
+    });
+    return new DirectorRouter(guess, clue, { now, onSwap: (swap) => setDebug((d) => ({ ...d, swap })) });
+  });
   useEffect(() => () => director.dispose(), [director]);
 
-  const [debug, setDebug] = useState<DebugState>({ events: [], engine: 'loading', lastQr: null });
   const setEngine = useCallback((engine: ScanEngine) => setDebug((d) => (d.engine === engine ? d : { ...d, engine })), []);
   useEffect(() => preloadScanner(setEngine), [setEngine]);
 
@@ -258,7 +281,7 @@ export default function Stage() {
 interface StageRoomProps {
   code: string;
   camera: ReturnType<typeof useCamera>;
-  director: PalDirector;
+  director: DirectorRouter;
   io: RefObject<Io>;
   debug: DebugState;
   setDebug: Dispatch<SetStateAction<DebugState>>;
@@ -282,24 +305,21 @@ function StageRoom({ code, camera, director, io, debug, setDebug, setEngine, onR
       (window.__omhEvents ??= []).push(data);
       if (DEBUG) {
         const type = (data as TavusEvent | undefined)?.event_type ?? '(no event_type)';
-        setDebug((d) => ({
-          ...d,
-          events: [{ id: Date.now() + Math.random(), type, json: JSON.stringify(data, null, 1) }, ...d.events].slice(0, DEBUG_EVENTS),
-        }));
+        setDebug((d) => withEvent(d, type, data));
       }
       if (data && typeof data === 'object') director.onTavusEvent(data as TavusEvent);
     },
-    onPalJoined: () => {
-      roomSend({ t: 'pal', status: 'joined' });
+    onPalJoined: (conversationId) => {
+      roomSend({ t: 'pal', status: 'joined', ...(conversationId ? { conversationId } : {}) });
       director.onPalJoined();
     },
-    onPalLeft: () => {
+    onPalLeft: (conversationId) => {
       director.setLive(false);
-      roomSend({ t: 'pal', status: 'left' });
+      roomSend({ t: 'pal', status: 'left', ...(conversationId ? { conversationId } : {}) });
     },
-    onError: (error) => {
+    onError: (error, conversationId) => {
       director.setLive(false);
-      roomSend({ t: 'pal', status: 'error', error });
+      roomSend({ t: 'pal', status: 'error', error, ...(conversationId ? { conversationId } : {}) });
     },
   };
   const call = usePalCall(palUrl, pal?.conversationId ?? null, camera.stream, camera.stream !== null || camera.error !== null, handlers);
@@ -318,12 +338,16 @@ function StageRoom({ code, camera, director, io, debug, setDebug, setEngine, onR
 
   // After a socket reconnect the Room demotes the PAL to joining; it is still in our call, so say so.
   useEffect(() => {
-    if (pal?.status === 'joining' && call.view.present) roomSend({ t: 'pal', status: 'joined' });
-  }, [pal?.status, call.view.present, roomSend]);
+    if (pal?.status === 'joining' && call.view.present) {
+      roomSend({ t: 'pal', status: 'joined', ...(pal.conversationId ? { conversationId: pal.conversationId } : {}) });
+    }
+  }, [pal?.status, pal?.conversationId, call.view.present, roomSend]);
 
-  // ----- Word QR scanner -----
+  const lastFriend = useLastFriend(pal);
+
+  // ----- Word QR scanner (Guess mode only: in Clue mode the Word is on the PAL forehead) -----
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
-  const playing = phase === 'playing';
+  const playing = phase === 'playing' && snap?.round?.mode !== 'clue';
   useEffect(() => {
     if (!playing || !videoEl) return;
     const scanner = startScanner(
@@ -361,16 +385,37 @@ function StageRoom({ code, camera, director, io, debug, setDebug, setEngine, onR
   } else if (!snap || phase === 'waiting') {
     screen = <Waiting code={code} camera={camera} selfView={selfView} />;
   } else {
-    screen = <Game snap={snap} clockOffset={room.clockOffset} palVideo={call.view.video} selfView={selfView} cameraError={camera.error} />;
+    screen = (
+      <Game snap={snap} clockOffset={room.clockOffset} palVideo={call.view.video} selfView={selfView} cameraError={camera.error} lastFriend={lastFriend} />
+    );
   }
 
   return (
     <>
       {screen}
       <PalAudio track={call.view.audio} />
-      {DEBUG && <DebugPanel debug={debug} palStatus={pal?.status ?? 'none'} connected={room.connected} />}
+      {DEBUG && (
+        <DebugPanel
+          debug={debug}
+          palStatus={pal?.status ?? 'none'}
+          friend={pal ? FRIENDS[pal.mode ?? 'guess'].name : 'none'}
+          route={director.active}
+          connected={room.connected}
+        />
+      )}
     </>
   );
+}
+
+/** The friend last seen ready in the call: a different friend starting or joining is a swap (ADR 0004). */
+function useLastFriend(pal: Snapshot['pal'] | undefined): Mode | null {
+  const [last, setLast] = useState<Mode | null>(null);
+  const ready = pal?.status === 'ready';
+  const friend = pal?.mode ?? 'guess';
+  useEffect(() => {
+    if (ready) setLast(friend);
+  }, [ready, friend]);
+  return last;
 }
 
 // ---------- Media elements ----------
@@ -486,9 +531,11 @@ interface GameProps {
   palVideo: MediaStreamTrack | null;
   selfView: ReactNode;
   cameraError: string | null;
+  /** The friend last seen in the call, to tell a swap from a first join. */
+  lastFriend: Mode | null;
 }
 
-function Game({ snap, clockOffset, palVideo, selfView, cameraError }: GameProps) {
+function Game({ snap, clockOffset, palVideo, selfView, cameraError, lastFriend }: GameProps) {
   const { phase, round, pal } = snap;
   const ticking = phase === 'countdown' || phase === 'playing';
   const now = useTick(ticking, 100);
@@ -506,6 +553,10 @@ function Game({ snap, clockOffset, palVideo, selfView, cameraError }: GameProps)
   const countdown = round && phase === 'countdown' ? Math.max(1, secondsLeft(round.startsAt, now, clockOffset)) : null;
   const heard = phase === 'playing' && round?.current?.heardAt !== undefined;
   const recap = phase === 'recap';
+  const friend = pal.mode ?? 'guess';
+  // Clue mode only: the Word on the PAL forehead. Guess mode's Word never shows on the Stage.
+  const forehead = phase === 'playing' && round?.mode === 'clue' ? round.current : null;
+  const showName = pal.status === 'ready' && palVideo !== null;
 
   return (
     <div className={`stage stage-game${recap ? ' is-recap' : ''}`}>
@@ -534,25 +585,38 @@ function Game({ snap, clockOffset, palVideo, selfView, cameraError }: GameProps)
 
       <main className="stage-arena">
         <div className="stage-hero-wrap">
-          <section className="stage-hero" aria-label="Your PAL">
-            <TrackVideo track={pal.status === 'ready' ? palVideo : null} className="stage-pal-video" />
-            <PalPanel snap={snap} hasVideo={palVideo !== null} />
-            {countdown !== null && (
-              <div className="stage-countdown" aria-live="assertive">
-                <span key={countdown} className="stage-num">
-                  {countdown}
-                </span>
+          {forehead && <PalForehead key={forehead.wordId} word={forehead.word} friend={FRIENDS[friend].name} />}
+          <div className="stage-hero-box">
+            <section className="stage-hero" aria-label={`Your PAL, ${FRIENDS[friend].name}`}>
+              <TrackVideo track={pal.status === 'ready' ? palVideo : null} className="stage-pal-video" />
+              <PalPanel snap={snap} hasVideo={palVideo !== null} lastFriend={lastFriend} />
+              {countdown !== null && (
+                <div className="stage-countdown" aria-live="assertive">
+                  <span key={countdown} className="stage-num">
+                    {countdown}
+                  </span>
+                </div>
+              )}
+              {(showName || heard) && (
+                <div className="stage-hero-tags">
+                  {showName && (
+                    <span className="stage-friend">
+                      {FRIENDS[friend].name}
+                      <span className="stage-friend-role">{friend === 'clue' ? 'guessing' : 'giving clues'}</span>
+                    </span>
+                  )}
+                  {heard && (
+                    <p className="stage-heard" role="status">
+                      Heard it
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="stage-pip">
+                {cameraError ? <p className="stage-pip-error">Camera off</p> : selfView}
               </div>
-            )}
-            {heard && (
-              <p className="stage-heard" role="status">
-                Heard it
-              </p>
-            )}
-            <div className="stage-pip">
-              {cameraError ? <p className="stage-pip-error">Camera off</p> : selfView}
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
         {recap && <Recap snap={snap} />}
       </main>
@@ -560,8 +624,30 @@ function Game({ snap, clockOffset, palVideo, selfView, cameraError }: GameProps)
   );
 }
 
+/**
+ * The Word on the PAL forehead (Clue mode): the Player reads it like a friend's card. The PAL can't see it. No
+ * aria-live: a screen reader saying it out loud could reach the PAL through the mic.
+ */
+function PalForehead({ word, friend }: { word: string; friend: string }) {
+  return (
+    <div className="stage-forehead">
+      <div className="sticky stage-forehead-card" style={{ '--tilt': '-1.5deg' } as CSSProperties}>
+        <span className="stage-forehead-label">On {friend}'s forehead</span>
+        <span className="stage-forehead-word">{word}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Shown while a friend joins: a swap reads as the guesser changing, like in a real group (ADR 0004). */
+function joiningTitle(friend: Mode, lastFriend: Mode | null): { title: string; detail: string | null } {
+  const name = FRIENDS[friend].name;
+  if (lastFriend === null || lastFriend === friend) return { title: `${name} is joining…`, detail: null };
+  return { title: friend === 'clue' ? `${name}'s turn to guess` : `${name}'s turn to give the clues`, detail: 'Joining…' };
+}
+
 /** What sits on the hero when the PAL video isn't the whole story. */
-function PalPanel({ snap, hasVideo }: { snap: Snapshot; hasVideo: boolean }) {
+function PalPanel({ snap, hasVideo, lastFriend }: { snap: Snapshot; hasVideo: boolean; lastFriend: Mode | null }) {
   const { pal, phase } = snap;
   let title: string | null = null;
   let detail: string | null = null;
@@ -571,10 +657,10 @@ function PalPanel({ snap, hasVideo }: { snap: Snapshot; hasVideo: boolean }) {
     case 'idle':
     case 'starting':
     case 'joining':
-      title = 'Your PAL is joining…';
+      ({ title, detail } = joiningTitle(pal.mode ?? 'guess', lastFriend));
       break;
     case 'ready':
-      if (!hasVideo) title = 'Your PAL is joining…';
+      if (!hasVideo) ({ title, detail } = joiningTitle(pal.mode ?? 'guess', lastFriend));
       break;
     case 'busy':
       title = 'PAL is busy with another player. Try again in a few minutes.';
@@ -628,7 +714,9 @@ const slipSplit = (passedAfterHeard: number, gotUnheard: number) =>
 function Recap({ snap }: { snap: Snapshot }) {
   const s = snap.lastSummary;
   if (!s) return null;
-  const stats = snap.stats;
+  if (s.mode === 'clue') return <ClueRecap snap={snap} s={s} />;
+  // snap.stats follows the selected Mode; after switching to Clue mode they aren't this Round's.
+  const stats = snap.stats?.mode === 'guess' ? snap.stats : null;
   const pb = snap.personalBest;
   const best = stats?.bests[s.category];
   const qrTotal = s.qrDecoded + s.qrFallback;
@@ -751,9 +839,109 @@ function Recap({ snap }: { snap: Snapshot }) {
   );
 }
 
+/**
+ * Clue mode recap: score, Fouls (count and per Word) and the Clue mode Training stats. None of Guess mode's numbers
+ * (Reaction lag, Tilt slips, Word QR, leaks, nudges): they don't exist in Clue mode.
+ */
+function ClueRecap({ snap, s }: { snap: Snapshot; s: RoundSummary }) {
+  // snap.stats follows the selected Mode; after switching back to Guess mode they aren't this Round's.
+  const stats = snap.stats?.mode === 'clue' ? snap.stats : null;
+  const pb = snap.personalBest;
+  const best = stats?.bests[s.category];
+  const fouls = s.fouls ?? s.words.filter((w) => w.foul).length;
+
+  return (
+    <section className="stage-recap" aria-label="Round recap">
+      <div className="stage-recap-head">
+        <p className="stage-recap-score">
+          <span className="stage-num">{s.gotIt}</span>
+          <span className="stage-recap-score-unit">got it</span>
+        </p>
+        <div>
+          <h2 className="stage-recap-category">{CATEGORIES[s.category].name}</h2>
+          <p className="stage-recap-sub">
+            Round {s.index}, {s.passed} passed, {FRIENDS.clue.name} guessing
+          </p>
+        </div>
+        {pb && (
+          <div className="sticky stage-pb" style={{ '--tilt': '4deg' } as CSSProperties}>
+            <span className="stage-pb-title">New personal best</span>
+            <span className="stage-pb-detail">{pb.previous !== null ? `Up from ${pb.previous}` : 'Your first one'}</span>
+          </div>
+        )}
+      </div>
+
+      {s.words.length > 0 && (
+        <ol className="stage-recap-words">
+          {s.words.map((w) => (
+            <li key={w.wordId} className={`is-${w.outcome}`}>
+              <span className="stage-mark" aria-hidden="true">
+                {w.outcome === 'got' ? '✓' : w.outcome === 'pass' ? '↑' : '…'}
+              </span>
+              {w.word}
+              <span className="sr-only">{w.outcome === 'got' ? ', got it' : w.outcome === 'pass' ? ', passed' : ', unfinished'}</span>
+              {w.foul && (
+                <span className="stage-foul-note">
+                  <span className="sr-only">, </span>Foul
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <div className="stage-recap-cols is-single">
+        <section>
+          <h3>Training stats, Clue mode</h3>
+          <dl className="stage-dl">
+            <div>
+              <dt>Fouls</dt>
+              <dd>
+                {fouls}
+                {stats && <span className="stage-dd-note"> of {stats.fouls} all time</span>}
+              </dd>
+            </div>
+            <div>
+              <dt>Words per minute</dt>
+              <dd>{stats?.wordsPerMinute != null ? stats.wordsPerMinute.toFixed(1) : 'Not measured yet'}</dd>
+            </div>
+            <div>
+              <dt>Best at {CATEGORIES[s.category].name}</dt>
+              <dd>{best ?? s.gotIt}</dd>
+            </div>
+            {stats && (
+              <div>
+                <dt>Clue Rounds played</dt>
+                <dd>{stats.roundsPlayed}</dd>
+              </div>
+            )}
+            {stats && stats.mostPassed.length > 0 && (
+              <div>
+                <dt>Most passed</dt>
+                <dd>{stats.mostPassed.map((w) => w.word).join(', ')}</dd>
+              </div>
+            )}
+          </dl>
+        </section>
+      </div>
+
+      <p className="stage-recap-next">Play again or tap Done on your phone.</p>
+    </section>
+  );
+}
+
 // ---------- Debug ----------
 
-function DebugPanel({ debug, palStatus, connected }: { debug: DebugState; palStatus: string; connected: boolean }) {
+interface DebugPanelProps {
+  debug: DebugState;
+  palStatus: string;
+  friend: string;
+  route: Mode;
+  connected: boolean;
+}
+
+function DebugPanel({ debug, palStatus, friend, route, connected }: DebugPanelProps) {
+  const sw = debug.swap;
   return (
     <aside className="stage-debug" aria-label="Debug panel">
       <dl>
@@ -763,7 +951,21 @@ function DebugPanel({ debug, palStatus, connected }: { debug: DebugState; palSta
         </div>
         <div>
           <dt>PAL</dt>
-          <dd>{palStatus}</dd>
+          <dd>
+            {palStatus} ({friend})
+          </dd>
+        </div>
+        <div>
+          <dt>Director</dt>
+          <dd>{route === 'clue' ? `clue (reveal: ${REVEAL})` : 'guess'}</dd>
+        </div>
+        <div>
+          <dt>Friend swap</dt>
+          <dd>
+            {sw
+              ? `${FRIENDS[sw.from].name} → ${FRIENDS[sw.to].name}: ${seconds(sw.ms)} to first speech${sw.joinMs !== null ? ` (joined ${seconds(sw.joinMs)})` : ''}`
+              : 'not measured'}
+          </dd>
         </div>
         <div>
           <dt>Scanner</dt>

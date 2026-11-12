@@ -31,6 +31,18 @@ A practice trainer for the forehead guessing party game: train against a Tavus P
     - Workers runtime integration tests via `@cloudflare/vitest-plugin`: a full Round driven over real WebSockets (join, start, countdown, tilts, recap with Training stats), a second phone turned away, Guard leases (cap, release, expiry), and the Tavus client with an injected `fetch`.
     - The real Tavus path is verified by hand in scripted runs, which also produce the numbers below.
 
+## Stretch: Clue mode
+
+The real game swaps roles every Round, so Clue mode trains the other half: the Player gives Clues and the PAL guesses. Same rule as the real game: whoever guesses tilts.
+
+- **A second friend, not the same PAL in a new role.** Each Mode is its own Tavus PAL with its own face, name and personality (ADR 0004). Prompt, tool, perception and idle behaviour are all PAL-level and can't be overridden per conversation. Switching Mode swaps the conversation, which reads as "Maya's turn to guess", the way the guesser changes in a real group.
+- **The Word sits on the PAL's forehead.** The Stage shows it above the PAL's video, where the Player reads it like a friend's card. The PAL is never given the current Word. The camera stays on with raven-2, so faces and miming count as Clues.
+- **The PAL tilts on the Player's say-so.** "Yes, got it!" / "skip it" → the PAL calls `tilt` (down / up). Nothing checks whether it really said the Word: the Player can lie, as with real friends. A wrong tilt stands; a missed one is fixed by shouting "tilt it!". The phone sits idle during the Round.
+- **The Reveal catches lies and Fouls.** After each tilt the PAL is told the finished Word and reacts in one line. If the Player's own speech contained the Word, the Reveal says so and the PAL calls the Foul, the way a one-on-one friend only notices when they see the card. The tilt still stands; the recap counts Fouls.
+- **Hurry-ups for dead air** come from Tavus `idle_engagement: eager` plus the prompt, with no Room logic.
+- **The PAL guesses at full LLM strength.** Expect higher scores than in Guess mode; Training stats are kept per Mode, and a Room never repeats a Word across Modes.
+- **Check first (about 10 Tavus minutes):** `tilt` tool-call reliability on "yes!", whether low patience cuts in while the Player mimes, swap time between friends, and whether the Reveal lands before the next Clue.
+
 ## Measured numbers
 
 The Room records these per Word and rolls them up into each Round's summary. Values come from scripted real runs against the live PAL.

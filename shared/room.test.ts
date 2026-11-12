@@ -11,8 +11,10 @@ import {
   markHeard,
   markLeak,
   markNudge,
+  markSaid,
   markSilenceNudge,
   nextAlarmAt,
+  selectMode,
   setPal,
   startRound,
   type Draw,
@@ -241,5 +243,212 @@ describe('Silence nudges', () => {
     expect(sum.words.map((w) => w.freeze)).toEqual([undefined, true, true]);
     expect('freeze' in sum.words[0]).toBe(false);
     expect(endRound(playing()).lastSummary!.silenceNudges).toBe(0);
+  });
+});
+
+function lobby(): RoomState {
+  const j = joinController(createRoom('ABCD', T0), { playerId: 'p1', nickname: 'Ofer' });
+  if (!j.ok) throw new Error();
+  return j.state;
+}
+
+/** A Clue Round in play with the Clue PAL (Maya) in the call. */
+function playingClue(): RoomState {
+  let s = selectMode(lobby(), 'clue');
+  s = setPal(s, { status: 'ready', mode: 'clue' });
+  s = startRound(s, 'animals', T0);
+  return beginPlay(s, T0 + COUNTDOWN_MS, draw);
+}
+
+describe('Mode', () => {
+  it('defaults to Guess mode', () => {
+    expect(createRoom('ABCD', T0).mode).toBe('guess');
+    expect(playing().round!.mode).toBe('guess');
+  });
+
+  it('can be selected in the lobby or recap only', () => {
+    expect(selectMode(lobby(), 'clue').mode).toBe('clue');
+    const recap = endRound(playing());
+    expect(selectMode(recap, 'clue').mode).toBe('clue');
+    const waiting = createRoom('ABCD', T0);
+    expect(selectMode(waiting, 'clue')).toBe(waiting);
+    const s = playing();
+    expect(selectMode(s, 'clue')).toBe(s);
+    const countdown = startRound(setPal(lobby(), { status: 'ready' }), 'animals', T0);
+    expect(selectMode(countdown, 'clue')).toBe(countdown);
+  });
+
+  it('returns the same state when the Mode is unchanged', () => {
+    const s = lobby();
+    expect(selectMode(s, 'guess')).toBe(s);
+  });
+
+  it("starts a Round only when the PAL in the call is the selected Mode's friend (or offline)", () => {
+    const clue = selectMode(lobby(), 'clue');
+    expect(canStartRound(setPal(clue, { status: 'ready' }))).toBe(false); // no mode: the Guess friend
+    expect(canStartRound(setPal(clue, { status: 'ready', mode: 'guess' }))).toBe(false);
+    expect(canStartRound(setPal(clue, { status: 'ready', mode: 'clue' }))).toBe(true);
+    expect(canStartRound(setPal(clue, { status: 'offline' }))).toBe(true);
+    expect(canStartRound(setPal(lobby(), { status: 'ready', mode: 'clue' }))).toBe(false);
+    expect(canStartRound(setPal(lobby(), { status: 'ready', mode: 'guess' }))).toBe(true);
+  });
+
+  it('records the selected Mode on the Round and its summary', () => {
+    const s = playingClue();
+    expect(s.round!.mode).toBe('clue');
+    expect(endRound(s).lastSummary!.mode).toBe('clue');
+    expect(endRound(playing()).lastSummary!.mode).toBe('guess');
+  });
+
+  it('never repeats a Word across Modes', () => {
+    const passAll = (s: RoomState, n: number, at: number, by: 'player' | 'pal') => {
+      for (let i = 0; i < n; i++) {
+        const r = applyTilt(s, s.round!.current!.wordId, 'pass', at + i, draw, by);
+        if (!r.accepted) throw new Error();
+        s = r.state;
+      }
+      return s;
+    };
+    const drawn = (s: RoomState) => s.round!.results.map((r) => r.wordId).concat(s.round!.current ? [s.round!.current.wordId] : []);
+
+    // Guess, then Clue.
+    let s = passAll(playing(), 3, T0 + 4000, 'player');
+    const guessWords = drawn(s);
+    s = selectMode(endRound(s), 'clue');
+    s = beginPlay(startRound(setPal(s, { status: 'ready', mode: 'clue' }), 'animals', T0 + 70_000), T0 + 73_000, draw);
+    s = passAll(s, 3, T0 + 74_000, 'pal');
+    expect(drawn(s).filter((w) => guessWords.includes(w))).toEqual([]);
+
+    // Clue, then Guess.
+    let c = passAll(playingClue(), 3, T0 + 4000, 'pal');
+    const clueWords = drawn(c);
+    c = selectMode(endRound(c), 'guess');
+    c = beginPlay(startRound(setPal(c, { status: 'ready', mode: 'guess' }), 'animals', T0 + 70_000), T0 + 73_000, draw);
+    expect(c.round!.mode).toBe('guess');
+    expect(clueWords).not.toContain(c.round!.current!.wordId);
+    expect(new Set(c.used).size).toBe(c.used.length);
+  });
+});
+
+describe('who tilts', () => {
+  it('Guess Rounds accept only the Player tilt', () => {
+    const s = playing();
+    expect(applyTilt(s, 'w0', 'got', T0 + 5000, draw, 'pal')).toEqual({ accepted: false, state: s });
+    const r = applyTilt(s, 'w0', 'got', T0 + 5000, draw, 'player');
+    expect(r.accepted && r.result.by).toBe('player');
+  });
+
+  it('Clue Rounds accept only the PAL tilt; the Controller is idle', () => {
+    const s = playingClue();
+    expect(applyTilt(s, 'w0', 'got', T0 + 5000, draw).accepted).toBe(false); // default: the Player
+    expect(applyTilt(s, 'w0', 'got', T0 + 5000, draw, 'player').accepted).toBe(false);
+    const r = applyTilt(s, 'w0', 'got', T0 + 5000, draw, 'pal');
+    expect(r.accepted).toBe(true);
+    if (!r.accepted) return;
+    expect(r.result).toMatchObject({ wordId: 'w0', outcome: 'got', by: 'pal' });
+    expect(r.state.round!.current!.wordId).toBe('w1');
+  });
+
+  it('keeps first-tilt-wins and stale wordId rules for the PAL tilt', () => {
+    const r1 = applyTilt(playingClue(), 'w0', 'pass', T0 + 5000, draw, 'pal');
+    if (!r1.accepted) throw new Error();
+    expect(applyTilt(r1.state, 'w0', 'got', T0 + 5050, draw, 'pal').accepted).toBe(false);
+    expect(applyTilt(r1.state, 'w9', 'got', T0 + 5050, draw, 'pal').accepted).toBe(false);
+    expect(applyTilt(r1.state, 'w1', 'got', r1.state.round!.endsAt, draw, 'pal').accepted).toBe(false);
+  });
+});
+
+describe('Fouls (Clue mode)', () => {
+  const palTilt = (s: RoomState, outcome: 'got' | 'pass', at: number) => {
+    const r = applyTilt(s, s.round!.current!.wordId, outcome, at, draw, 'pal');
+    if (!r.accepted) throw new Error();
+    return r;
+  };
+
+  it("fouls the Word when the Player's speech says it before the PAL has", () => {
+    const s = markSaid(playingClue(), 'w0', 'player', 'it rhymes with... word0!', T0 + 4000);
+    expect(s.round!.current!.foul).toBe(true);
+    const r = palTilt(s, 'got', T0 + 5000);
+    expect(r.result.foul).toBe(true);
+  });
+
+  it('lets the Player confirm the Word once the PAL has said it', () => {
+    let s = markSaid(playingClue(), 'w0', 'pal', 'Is it word0?', T0 + 4000);
+    expect(s.round!.current!.palSaidAt).toBe(T0 + 4000);
+    s = markSaid(s, 'w0', 'player', 'Yes, word0!', T0 + 4500);
+    expect(s.round!.current!.foul).toBeUndefined();
+    expect(palTilt(s, 'got', T0 + 5000).result.foul).toBeUndefined();
+  });
+
+  it('keeps the first PAL mention and ignores speech that does not say the Word', () => {
+    let s = markSaid(playingClue(), 'w0', 'pal', 'word0?', T0 + 4000);
+    s = markSaid(s, 'w0', 'pal', 'word0!!', T0 + 4500);
+    expect(s.round!.current!.palSaidAt).toBe(T0 + 4000);
+    const quiet = playingClue();
+    expect(markSaid(quiet, 'w0', 'player', 'it has a long neck', T0 + 4000)).toBe(quiet);
+    expect(markSaid(quiet, 'w0', 'pal', 'a zebra?', T0 + 4000)).toBe(quiet);
+  });
+
+  it('ignores stale Words, Guess Rounds and speech outside play', () => {
+    const s = playingClue();
+    expect(markSaid(s, 'w9', 'player', 'word9', T0 + 4000)).toBe(s);
+    const g = playing();
+    expect(markSaid(g, 'w0', 'player', 'word0', T0 + 4000)).toBe(g);
+    const done = endRound(s);
+    expect(markSaid(done, 'w0', 'player', 'word0', T0 + 70_000)).toBe(done);
+  });
+
+  it('records an utterance landing just after the tilt on the Word just tilted', () => {
+    let s = palTilt(playingClue(), 'got', T0 + 5000).state;
+    s = markSaid(s, 'w0', 'player', 'word0, come on!', T0 + 5200);
+    expect(s.round!.results[0].foul).toBe(true);
+    expect(s.round!.current!.foul).toBeUndefined();
+
+    let t = palTilt(playingClue(), 'got', T0 + 5000).state;
+    t = markSaid(t, 'w0', 'pal', 'word0!', T0 + 5100);
+    t = markSaid(t, 'w0', 'player', 'yes, word0!', T0 + 5200);
+    expect(t.round!.results[0]).toMatchObject({ palSaidAt: T0 + 5100 });
+    expect(t.round!.results[0].foul).toBeUndefined();
+  });
+
+  it('ignores older Words once another tilt has happened', () => {
+    let s = palTilt(playingClue(), 'pass', T0 + 5000).state;
+    s = palTilt(s, 'pass', T0 + 6000).state;
+    expect(markSaid(s, 'w0', 'player', 'word0', T0 + 6100)).toBe(s);
+  });
+
+  it('summarizes Fouls and leaves Guess-only numbers out of Clue Rounds', () => {
+    let s = markSaid(playingClue(), 'w0', 'player', 'word0', T0 + 4000);
+    s = palTilt(s, 'got', T0 + 5000).state; // fouled Got it
+    s = palTilt(s, 'got', T0 + 6000).state; // clean Got it the PAL never said: no Tilt slip in Clue mode
+    s = palTilt(s, 'pass', T0 + 7000).state;
+    s = markSaid(s, 'w2', 'player', 'it was word2!', T0 + 7100); // late Foul on the Pass
+    s = markSaid(s, 'w3', 'player', 'word3', T0 + 8000); // unfinished, fouled
+    const sum = endRound(s).lastSummary!;
+    expect(sum).toMatchObject({
+      mode: 'clue',
+      gotIt: 2,
+      passed: 1,
+      fouls: 3,
+      reactionLagMs: null,
+      heardCount: 0,
+      qrDecoded: 0,
+      qrFallback: 0,
+      qrDecodeMs: null,
+      clueLatencyMs: null,
+      leaks: 0,
+      nudges: 0,
+      silenceNudges: 0,
+      passedAfterHeard: 0,
+      gotUnheard: 0,
+    });
+    expect(sum.words.map((w) => w.foul)).toEqual([true, undefined, true, true]);
+    expect(sum.words.some((w) => 'slip' in w)).toBe(false);
+    expect('foul' in sum.words[1]).toBe(false);
+  });
+
+  it('keeps Guess Round summaries free of Fouls', () => {
+    const sum = endRound(playing()).lastSummary!;
+    expect('fouls' in sum).toBe(false);
   });
 });

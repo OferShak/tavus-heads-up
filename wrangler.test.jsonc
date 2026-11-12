@@ -11,5 +11,5 @@
     ]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room", "PlayerStats", "Guard"] }],
-  "vars": { "TAVUS_PAL_ID": "", "MAX_CONCURRENT": "1", "TAVUS_TEST_MODE": "0" }
+  "vars": { "TAVUS_PAL_ID": "", "TAVUS_CLUE_PAL_ID": "", "MAX_CONCURRENT": "1", "TAVUS_TEST_MODE": "0" }
 }

@@ -11,7 +11,7 @@ The big screen (laptop/TV) running the site: QR code, PAL video call, timer, sco
 _Avoid_: host, TV, desktop
 
 **Controller**:
-The Player's phone, joined to a Room via the Join QR; in Guess mode shows the Word QR on the Player's forehead and reads tilt gestures.
+The Player's phone, joined to a Room via the Join QR; in Guess mode shows the Word QR on the Player's forehead and reads tilt gestures; idle during Clue mode Rounds.
 _Avoid_: remote, mobile client
 
 **Self-view**:
@@ -56,16 +56,24 @@ One 60-second run through Words from a single Category, ending with a score.
 _Avoid_: game, turn
 
 **Word**:
-The secret answer in play, hidden from whoever is guessing (the Player in Guess mode, the PAL in Clue mode).
+The secret answer in play, hidden from whoever is guessing (the Player in Guess mode, the PAL in Clue mode) until its Reveal.
 _Avoid_: card, answer, prompt
+
+**Reveal**:
+Showing the guesser the Word they just tilted: big text on the Controller in Guess mode; told to the PAL in Clue mode, which reacts in one short line ("Giraffe?! Bad neck clue.").
+_Avoid_: answer screen, recap
 
 **Clue**:
 A short spoken hint at the Word from whoever can see it (the PAL in Guess mode, the Player in Clue mode); never contains the Word or any part of it.
 _Avoid_: hint
 
 **Got it** / **Pass**:
-The two outcomes of a Word, decided only by the Player's tilt: down = Got it, up = Pass. The PAL never scores.
+The two outcomes of a Word, decided only by a tilt from whoever is guessing: down = Got it, up = Pass. In Guess mode the Player tilts the Controller; in Clue mode the PAL tilts. The Room never scores on its own.
 _Avoid_: correct/skip
+
+**PAL tilt**:
+The PAL's Got it / Pass in Clue mode (a tool call), made only on the Player's spoken say-so ("yes, got it!", "skip it"); the Player may lie, as with real friends.
+_Avoid_: auto-score, PAL-judged
 
 **Heard it**:
 The moment the PAL hears the Player say the right Word (PAL tool call); it feeds Training stats only, never scoring. The PAL's call counts only when the Player's own words (their transcribed speech) say the current Word.
@@ -86,27 +94,39 @@ _Avoid_: stuck word, stall
 A tilt that disagrees with Heard it: a Pass on a Word the PAL heard the Player say, or a Got it on a Word the PAL (in the call) never heard.
 _Avoid_: wrong tilt, mistake
 
+**Hurry-up**:
+The PAL's prod when the Player goes quiet in Clue mode ("come on, give me something!", later "just skip it!"); never a tilt by itself.
+_Avoid_: Silence nudge (that's Guess mode's fresh Clue), prompt
+
+**Foul**:
+A Clue mode Word whose Clues contained the Word itself (whole Word or plural, in the Player's transcribed speech) before the PAL had said it; caught only at its Reveal, like a one-on-one friend seeing the card. Once the PAL's own speech has said the Word, the Player saying it ("yes, giraffe!") is just confirming.
+_Avoid_: cheat, penalty, violation
+
 ### Training
 
 **Reaction lag**:
 Time from Heard it to the Player's Got it tilt.
 
 **Training stats**:
-Per-Player numbers across Rooms and Rounds (persist between visits): personal best per Category, Words per minute, Reaction lag, most-passed Words, Tilt slips (in total and each kind separately).
+Per-Player numbers across Rooms and Rounds (persist between visits): personal best per Category, Words per minute, Reaction lag, most-passed Words, Tilt slips (in total and each kind separately), Fouls. Kept separately per Mode; Reaction lag and Tilt slips exist only in Guess mode, Fouls only in Clue mode.
 _Avoid_: analytics, metrics
 
 ## Relationships
 
 - A **Room** has exactly one **Stage**, one **Controller**, one **Player**, and one **PAL** at a time
 - A **Room** plays one or more **Rounds**; each **Round** uses one **Category** and one **Mode**
-- Each **Mode** has its own **PAL** (same face); changing **Mode** between **Rounds** swaps the **PAL**
+- Each **Mode** has its own **PAL**, a different friend (own face, name, personality); changing **Mode** between **Rounds** swaps the **PAL**, like the guesser changing in a real group
 - A **Round** presents a sequence of **Words**; each ends as **Got it** or **Pass**
+- A **Room** never repeats a **Word**, across both **Modes**; most-passed **Words** come back more often, tracked per **Mode**
 - Only a tilt produces **Got it** / **Pass**; **Heard it** without a tilt triggers a **Tilt nudge**
 - A **Tilt slip** still scores as tilted; the **PAL** calls it out and **Training stats** count it, keeping the two kinds (Pass after **Heard it**, Got it never heard) apart
+- In **Clue mode**, a **PAL tilt** follows only the **Player**'s word; nothing checks whether the **PAL** really said the **Word**
+- In **Clue mode**, a wrong **PAL tilt** stands and a missed one is fixed only by talking ("tilt it!"); the **Controller** has no role during the **Round**
+- The **Room** spots a **Foul** (the **Player**'s speech says the **Word** before the **PAL**'s does) and passes it along with the **Reveal**; the **PAL** calls it out in character, the tilt still stands, and the **Round** recap and **Training stats** count it
 - In **Guess mode**, **Silence nudges** happen only while the current **Word** is being clued and before **Heard it** (after it, **Tilt nudges** take over); they escalate: a fresh angle, then "sounds like" / rhymes, then "just pass it!" with one more **Clue**. Only a tilt still scores
 - The **Round** recap counts **Silence nudges** per **Word** and names **Freezes**; neither is a lifetime **Training stat**
 - In **Guess mode**, the **Stage** decodes the **Word QR** from the camera and injects the **Word** into the **PAL**; if decoding fails, the **Room**'s copy is injected instead
-- In **Clue mode**, the **Word** is shown only on the **PAL forehead** (the **Controller** never shows it); the **PAL** is never given the **Word**, but still sees the **Player** through the camera, so faces and miming count as clues
+- In **Clue mode**, the **Word** is shown only on the **PAL forehead** (the **Controller** never shows it); the **PAL** is never given the current **Word** (only its **Reveal** after a **PAL tilt**, where it may call out a lie), but still sees the **Player** through the camera, so faces and miming count as clues
 
 ## Example dialogue
 

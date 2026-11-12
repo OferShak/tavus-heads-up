@@ -246,17 +246,72 @@ html:has(.stage) {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
 }
 
-/* The hero keeps 16:9 inside whatever space is left. */
+/* The hero keeps 16:9 inside whatever space is left (below the PAL forehead in Clue mode). */
 .stage-hero-wrap {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.stage-hero-box {
   container-type: size;
+  flex: 1;
+  align-self: stretch;
   min-width: 0;
   min-height: 0;
   display: grid;
   place-items: center;
 }
 
-.stage-game.is-recap .stage-hero-wrap {
+.stage-game.is-recap .stage-hero-box {
   place-items: start center;
+}
+
+/* PAL forehead (Clue mode): the Word on a sticky note just above the PAL, read like a friend's card. */
+.stage-forehead {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding-top: 0.5rem;
+  animation: stage-forehead-in 260ms var(--ease) both;
+}
+
+.stage-forehead-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 16rem;
+  max-width: min(90%, 40rem);
+  padding: 0.6rem 2rem 0.75rem;
+  text-align: center;
+}
+
+.stage-forehead-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.stage-forehead-word {
+  font-size: 3.75rem;
+  font-weight: 900;
+  font-stretch: 75%;
+  line-height: 1;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+@keyframes stage-forehead-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.6rem);
+  }
 }
 
 .stage-hero {
@@ -345,10 +400,33 @@ html:has(.stage) {
   }
 }
 
-.stage-heard {
+/* Name tag and Heard it, over the hero's top-left corner. */
+.stage-hero-tags {
   position: absolute;
   top: 1rem;
   left: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stage-friend {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 82%, transparent);
+  font-weight: 800;
+}
+
+.stage-friend-role {
+  color: var(--muted);
+  font-size: 0.85em;
+  font-weight: 400;
+}
+
+.stage-heard {
   padding: 0.3rem 0.85rem;
   border-radius: 999px;
   background: var(--got);
@@ -485,10 +563,24 @@ html:has(.stage) {
   font-weight: 400;
 }
 
+/* Clue mode: the Player's own Clues said the Word. */
+.stage-foul-note {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--danger);
+  color: var(--ink);
+  font-size: 0.75em;
+  font-weight: 800;
+}
+
 .stage-recap-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
+}
+
+.stage-recap-cols.is-single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .stage-recap-cols h3 {
@@ -644,8 +736,13 @@ html:has(.stage) {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .stage-hero-wrap {
+  .stage-hero-box {
     container-type: inline-size;
+    flex: none;
+  }
+
+  .stage-forehead-word {
+    font-size: 2.75rem;
   }
 
   .stage-hero {

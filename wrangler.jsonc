@@ -19,6 +19,8 @@
   "vars": {
     // Set by `npm run setup-pal` output. Not secret.
     "TAVUS_PAL_ID": "p3ca4b55ce14",
+    // Clue mode PAL (Maya guesses), also set by `npm run setup-pal`.
+    "TAVUS_CLUE_PAL_ID": "pbfb352aaf49",
     // Max live PAL conversations across all Rooms (protects Tavus minutes on a public URL).
     "MAX_CONCURRENT": "1",
     // "1" = Tavus creates the conversation but the PAL never joins (no minutes used).

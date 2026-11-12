@@ -116,6 +116,61 @@
   border-color: var(--sticky);
 }
 
+/* ---------- Mode picker: who guesses next Round ---------- */
+
+.ctl-modes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s-3);
+}
+
+.ctl-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+  min-width: 0;
+  min-height: 48px;
+  padding: var(--s-3);
+  border: 2px solid var(--muted);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--paper);
+  font-family: var(--font);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  transition: background-color 120ms var(--ease), border-color 120ms var(--ease), transform 80ms var(--ease);
+}
+
+.ctl-mode:active {
+  transform: translateY(1px);
+}
+
+.ctl-mode.is-on {
+  border-color: var(--sticky);
+  background: var(--sticky);
+  color: var(--ink);
+  box-shadow: 0 2px 0 var(--sticky-edge), 0 3px 0 rgba(10, 12, 40, 0.45);
+}
+
+.ctl-mode-you {
+  font-size: var(--t-lg);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.ctl-mode-friend {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ctl-mode:not(.is-on) .ctl-mode-friend {
+  color: var(--muted);
+}
+
 /* ---------- Category notes ---------- */
 
 .ctl-cats {
@@ -326,6 +381,38 @@
   }
 }
 
+/* ---------- Clue mode Round: the phone sits idle ---------- */
+
+.ctl-clue-hud {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.ctl-clue-big {
+  color: var(--sticky);
+  font-size: clamp(3rem, 18vw, 5rem);
+  font-weight: 900;
+  font-stretch: 62%;
+  line-height: 0.95;
+}
+
+.ctl-clue-score {
+  font-size: var(--t-xl);
+  font-weight: 800;
+}
+
+.ctl-clue-rules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-left: var(--s-5);
+  color: var(--muted);
+  font-size: var(--t-md);
+}
+
 /* ---------- Recap ---------- */
 
 .ctl-score {
@@ -394,6 +481,15 @@
 .ctl-words .is-pass .ctl-word,
 .ctl-words .is-unfinished {
   color: var(--muted);
+}
+
+.ctl-foul {
+  padding: 0 var(--s-2);
+  border-radius: var(--radius);
+  background: var(--danger);
+  color: var(--ink);
+  font-size: var(--t-sm);
+  font-weight: 800;
 }
 
 .ctl-recap-result,
@@ -470,6 +566,18 @@
   .ctl-join-form {
     margin-top: 0;
     gap: var(--s-3);
+  }
+
+  .ctl-mode {
+    padding: var(--s-2) var(--s-3);
+  }
+
+  .ctl-mode-you {
+    font-size: var(--t-md);
+  }
+
+  .ctl-clue-big {
+    font-size: 3rem;
   }
 
   /* Category picker: three compact notes in a row. */
