@@ -20,6 +20,7 @@ function round(over: Partial<RoundSummary> = {}): RoundSummary {
     clueLatencyMs: null,
     leaks: 0,
     nudges: 0,
+    silenceNudges: 0,
     passedAfterHeard: 0,
     gotUnheard: 0,
     ...over,

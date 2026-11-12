@@ -18,7 +18,8 @@ export type ClientMsg =
   | { t: 'decoded'; wordId: string; source: DecodeSource }
   | { t: 'clue_latency'; wordId: string; ms: number }
   | { t: 'leak'; wordId: string }
-  | { t: 'nudge'; wordId: string };
+  | { t: 'nudge'; wordId: string }
+  | { t: 'silence_nudge'; wordId: string };
 
 export interface PlayerSummary {
   nickname: string;

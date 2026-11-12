@@ -1,7 +1,7 @@
 // Pure Room logic: the Room Durable Object is a thin shell around these transitions (ADR 0002).
 // Every function returns a new state; nothing here touches sockets, storage or the clock.
 
-import { COUNTDOWN_MS, ROUND_MS, type CategoryId, type Outcome, type Word } from './game';
+import { COUNTDOWN_MS, FREEZE_NUDGES, ROUND_MS, type CategoryId, type Outcome, type Word } from './game';
 
 export type Phase = 'waiting' | 'lobby' | 'countdown' | 'playing' | 'recap' | 'closed';
 
@@ -36,6 +36,8 @@ export interface CurrentWord {
   clueLatencyMs?: number;
   leaked?: boolean;
   nudges?: number;
+  /** Silence nudges: fresh Clues the PAL gave because the Player went quiet (Guess mode). */
+  silenceNudges?: number;
 }
 
 export interface WordResult extends CurrentWord {
@@ -62,7 +64,8 @@ export interface RoundSummary {
   category: CategoryId;
   gotIt: number;
   passed: number;
-  words: { wordId: string; word: string; outcome: Outcome | 'unfinished'; slip?: TiltSlip }[];
+  /** freeze: the Word took FREEZE_NUDGES or more Silence nudges. */
+  words: { wordId: string; word: string; outcome: Outcome | 'unfinished'; slip?: TiltSlip; freeze?: true }[];
   /** Mean Heard it → Got it tilt, over Words the PAL heard. */
   reactionLagMs: number | null;
   heardCount: number;
@@ -72,6 +75,7 @@ export interface RoundSummary {
   clueLatencyMs: number | null;
   leaks: number;
   nudges: number;
+  silenceNudges: number;
   /** Tilt slips: Pass on a Word the PAL had heard. */
   passedAfterHeard: number;
   /** Tilt slips: Got it on a Word the PAL never heard (only while the PAL was in the call). */
@@ -221,6 +225,12 @@ export function markNudge(s: RoomState, wordId: string): RoomState {
   return updateCurrent(s, wordId, (c) => ({ ...c, nudges: (c.nudges ?? 0) + 1 }));
 }
 
+export function markSilenceNudge(s: RoomState, wordId: string): RoomState {
+  return updateCurrent(s, wordId, (c) => ({ ...c, silenceNudges: (c.silenceNudges ?? 0) + 1 }));
+}
+
+const freezeOf = (w: CurrentWord) => ((w.silenceNudges ?? 0) >= FREEZE_NUDGES ? { freeze: true as const } : {});
+
 function slipOf(r: WordResult): TiltSlip | undefined {
   if (r.outcome === 'pass' && r.heardAt !== undefined) return 'passed_after_heard';
   if (r.outcome === 'got' && r.heardAt === undefined && r.palReady) return 'got_unheard';
@@ -241,8 +251,16 @@ export function summarize(round: RoundState): RoundSummary {
     gotIt: got.length,
     passed: round.results.length - got.length,
     words: [
-      ...round.results.map((r, i) => ({ wordId: r.wordId, word: r.word, outcome: r.outcome, ...(slips[i] ? { slip: slips[i] } : {}) })),
-      ...(round.current ? [{ wordId: round.current.wordId, word: round.current.word, outcome: 'unfinished' as const }] : []),
+      ...round.results.map((r, i) => ({
+        wordId: r.wordId,
+        word: r.word,
+        outcome: r.outcome,
+        ...(slips[i] ? { slip: slips[i] } : {}),
+        ...freezeOf(r),
+      })),
+      ...(round.current
+        ? [{ wordId: round.current.wordId, word: round.current.word, outcome: 'unfinished' as const, ...freezeOf(round.current) }]
+        : []),
     ],
     reactionLagMs: mean(lags),
     heardCount: all.filter((w) => w.heardAt !== undefined).length,
@@ -252,6 +270,7 @@ export function summarize(round: RoundState): RoundSummary {
     clueLatencyMs: mean(all.flatMap((w) => (w.clueLatencyMs !== undefined ? [w.clueLatencyMs] : []))),
     leaks: all.filter((w) => w.leaked).length,
     nudges: all.reduce((n, w) => n + (w.nudges ?? 0), 0),
+    silenceNudges: all.reduce((n, w) => n + (w.silenceNudges ?? 0), 0),
     passedAfterHeard: slips.filter((x) => x === 'passed_after_heard').length,
     gotUnheard: slips.filter((x) => x === 'got_unheard').length,
   };

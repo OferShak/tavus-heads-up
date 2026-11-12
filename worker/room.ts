@@ -14,6 +14,7 @@ import {
   markHeard,
   markLeak,
   markNudge,
+  markSilenceNudge,
   nextAlarmAt,
   setPal,
   startRound,
@@ -251,6 +252,9 @@ export class Room extends DurableObject<Env> {
         return;
       case 'nudge':
         this.save(markNudge(s, msg.wordId));
+        return;
+      case 'silence_nudge':
+        this.save(markSilenceNudge(s, msg.wordId));
         return;
     }
   }

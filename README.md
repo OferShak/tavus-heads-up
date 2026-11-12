@@ -77,6 +77,23 @@ npm test && npm run deploy   # builds, then deploys the Worker + assets to overm
 - Logs: `npx wrangler tail`.
 - To try a build in the cloud without touching the live site: `npm run build && npx wrangler versions upload` prints a preview URL on `workers.dev` (requires the account's workers.dev subdomain).
 
+### Continuous deploy
+
+`.github/workflows/deploy.yml`: every push to `main` runs typecheck, tests and build, then deploys. PRs run the checks only. Manual run: Actions tab, `workflow_dispatch`.
+
+One-time setup:
+
+1. Cloudflare dashboard, API Tokens: create a token from the "Edit Cloudflare Workers" template, scoped to this account and the `ofershak.com` zone.
+2. Account id: `npx wrangler whoami`.
+3. Store both as repo secrets:
+
+```sh
+gh secret set CLOUDFLARE_API_TOKEN
+gh secret set CLOUDFLARE_ACCOUNT_ID
+```
+
+- CI never touches `TAVUS_API_KEY`: the Worker secret set via `wrangler secret put` persists across deploys.
+
 ## Layout
 
 - `shared/`: domain logic and types used by both sides (Room state machine, word decks and drawing, QR payload, leak guard, PAL context, socket protocol)
