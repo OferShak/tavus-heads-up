@@ -99,7 +99,7 @@ The PAL's prod when the Player goes quiet in Clue mode ("come on, give me someth
 _Avoid_: Silence nudge (that's Guess mode's fresh Clue), prompt
 
 **Foul**:
-A Clue mode Word whose Clues contained the Word itself (whole Word or plural, in the Player's transcribed speech); caught only at its Reveal, like a one-on-one friend seeing the card.
+A Clue mode Word whose Clues contained the Word itself (whole Word or plural, in the Player's transcribed speech) before the PAL had said it; caught only at its Reveal, like a one-on-one friend seeing the card. Once the PAL's own speech has said the Word, the Player saying it ("yes, giraffe!") is just confirming.
 _Avoid_: cheat, penalty, violation
 
 ### Training
@@ -122,7 +122,7 @@ _Avoid_: analytics, metrics
 - A **Tilt slip** still scores as tilted; the **PAL** calls it out and **Training stats** count it, keeping the two kinds (Pass after **Heard it**, Got it never heard) apart
 - In **Clue mode**, a **PAL tilt** follows only the **Player**'s word; nothing checks whether the **PAL** really said the **Word**
 - In **Clue mode**, a wrong **PAL tilt** stands and a missed one is fixed only by talking ("tilt it!"); the **Controller** has no role during the **Round**
-- The **Room** spots a **Foul** and passes it along with the **Reveal**; the **PAL** calls it out in character, the tilt still stands, and the **Round** recap and **Training stats** count it
+- The **Room** spots a **Foul** (the **Player**'s speech says the **Word** before the **PAL**'s does) and passes it along with the **Reveal**; the **PAL** calls it out in character, the tilt still stands, and the **Round** recap and **Training stats** count it
 - In **Guess mode**, **Silence nudges** happen only while the current **Word** is being clued and before **Heard it** (after it, **Tilt nudges** take over); they escalate: a fresh angle, then "sounds like" / rhymes, then "just pass it!" with one more **Clue**. Only a tilt still scores
 - The **Round** recap counts **Silence nudges** per **Word** and names **Freezes**; neither is a lifetime **Training stat**
 - In **Guess mode**, the **Stage** decodes the **Word QR** from the camera and injects the **Word** into the **PAL**; if decoding fails, the **Room**'s copy is injected instead

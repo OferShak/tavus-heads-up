@@ -8,9 +8,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export interface PalCallHandlers {
   /** Raw Tavus event (`event.data` of a Daily app-message). */
   onAppMessage(data: unknown): void;
-  onPalJoined(): void;
-  onPalLeft(): void;
-  onError(error: string): void;
+  /** conversationId: the call this is about (the Room ignores reports about a call swapped out since). */
+  onPalJoined(conversationId: string | null): void;
+  onPalLeft(conversationId: string | null): void;
+  onError(error: string, conversationId: string | null): void;
 }
 
 export interface PalCallView {
@@ -74,6 +75,8 @@ export function usePalCall(
     let cancelled = false;
     let call: DailyCall | null = null;
     let present = false;
+    // The conversation this call joins: reports from it stay about it even after the Room has moved on.
+    const conv = convRef.current;
 
     const update = (excludeSessionId?: string) => {
       if (!call || call.isDestroyed()) return;
@@ -85,14 +88,14 @@ export function usePalCall(
       if (pal && !present) markJoined();
       else if (!pal && present) {
         present = false;
-        handlersRef.current.onPalLeft();
+        handlersRef.current.onPalLeft(conv);
       }
     };
 
     const markJoined = () => {
       if (present) return;
       present = true;
-      handlersRef.current.onPalJoined();
+      handlersRef.current.onPalJoined(conv);
     };
 
     void (async () => {
@@ -122,17 +125,17 @@ export function usePalCall(
           if (cancelled) return;
           setView(EMPTY);
           present = false;
-          handlersRef.current.onPalLeft();
+          handlersRef.current.onPalLeft(conv);
         })
         .on('error', (ev) => {
           if (cancelled) return;
-          handlersRef.current.onError(ev?.errorMsg ?? 'Daily call error');
+          handlersRef.current.onError(ev?.errorMsg ?? 'Daily call error', conv);
         });
       try {
         await call.join({ url });
         update();
       } catch (e) {
-        if (!cancelled) handlersRef.current.onError(e instanceof Error ? e.message : String(e));
+        if (!cancelled) handlersRef.current.onError(e instanceof Error ? e.message : String(e), conv);
       }
     })();
 

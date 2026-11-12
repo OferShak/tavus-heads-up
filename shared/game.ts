@@ -25,6 +25,10 @@ export const FREEZE_NUDGES = 3;
 export type Level = 'easy' | 'medium' | 'hard';
 export type CategoryId = 'animals' | 'food' | 'jobs';
 export type Outcome = 'got' | 'pass';
+/** Which side of the game the Player is training: Guess mode (Player guesses) or Clue mode (Player gives Clues). */
+export type Mode = 'guess' | 'clue';
+/** Who did something in the Room: the Player (human) or the PAL. */
+export type Who = 'player' | 'pal';
 
 export interface Word {
   id: string;
@@ -50,3 +54,10 @@ export const CATEGORY_IDS = Object.keys(CATEGORIES) as CategoryId[];
 export function isCategoryId(v: unknown): v is CategoryId {
   return typeof v === 'string' && v in CATEGORIES;
 }
+
+export function isMode(v: unknown): v is Mode {
+  return v === 'guess' || v === 'clue';
+}
+
+/** The PAL friend per Mode: Guess mode's friend gives Clues, Clue mode's friend guesses (ADR 0004). */
+export const FRIENDS: Record<Mode, { name: string }> = { guess: { name: 'Anna' }, clue: { name: 'Maya' } };
