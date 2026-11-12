@@ -1,9 +1,10 @@
 // The Stage: the laptop/TV screen. Shows the Join QR, runs the PAL call, decodes the Word QR from the
 // camera and drives the PAL through the PalDirector (Guess mode) or the ClueDirector (Clue mode), routed by the
-// friend in the call. In Guess mode it never displays the current Word; in Clue mode it shows it on the PAL forehead.
+// friend in the call. In Guess mode it never displays the current Word; in Clue mode it shows it on the PAL forehead
+// (a phone drawn on the PAL's head).
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from 'react';
-import { CATEGORIES, FRIENDS, ROUND_MS, type Mode } from '../../shared/game';
+import { CATEGORIES, FRIENDS, ROUND_MS, type Mode, type Outcome } from '../../shared/game';
 import type { ClientMsg, RoomEvent, Snapshot } from '../../shared/protocol';
 import type { RoundSummary } from '../../shared/room';
 import { Qr } from '../lib/Qr';
@@ -11,8 +12,10 @@ import { secondsLeft, useRoom, useTick } from '../lib/useRoom';
 import { ClueDirector, isRevealStrategyName, REVEAL_STRATEGIES, REVEAL_STRATEGY, type RevealStrategyName } from './clue-director';
 import { PalDirector, type TavusEvent } from './director';
 import { DirectorRouter, type SwapMeasure } from './director-router';
+import { PalForehead } from './PalForehead';
 import { usePalCall, type PalCallHandlers } from './pal-call';
 import { preloadScanner, startScanner, type ScanEngine } from './scanner';
+import { usePalForehead } from './usePalForehead';
 import './stage.css';
 
 declare global {
@@ -88,6 +91,8 @@ function useJoinOrigin(): string {
 }
 
 type Io = { interact: (eventType: string, properties?: Record<string, unknown>) => void; report: (m: ClientMsg) => void };
+/** The PAL forehead's tilt, set by the Game while it is mounted. The ClueDirector is created once, so it calls through this. */
+type ForeheadTilt = ((outcome: Outcome) => void) | null;
 const NO_IO: Io = { interact: () => undefined, report: () => undefined };
 
 interface DebugEvent {
@@ -221,6 +226,7 @@ export default function Stage() {
   const { code, failed, renew, retry } = useRoomCode();
   const camera = useCamera();
   const io = useRef<Io>(NO_IO);
+  const foreheadTilt = useRef<ForeheadTilt>(null);
   const [debug, setDebug] = useState<DebugState>({ events: [], engine: 'loading', lastQr: null, swap: null });
   const [director] = useState(() => {
     const interact = (t: string, p?: Record<string, unknown>) => io.current.interact(t, p);
@@ -240,6 +246,8 @@ export default function Stage() {
       now,
       reactions: REACTIONS,
       reveal: REVEAL_STRATEGIES[REVEAL],
+      // The phone tips at once; its `forward` is ignored because the director already reported the tilt to the Room.
+      onTilt: (outcome) => foreheadTilt.current?.(outcome),
       log: DEBUG ? (label, data) => setDebug((d) => withEvent(d, label, data)) : undefined,
     });
     return new DirectorRouter(guess, clue, { now, onSwap: (swap) => setDebug((d) => ({ ...d, swap })) });
@@ -274,7 +282,18 @@ export default function Stage() {
   }
 
   return (
-    <StageRoom key={code} code={code} camera={camera} director={director} io={io} debug={debug} setDebug={setDebug} setEngine={setEngine} onRenew={newRoom} />
+    <StageRoom
+      key={code}
+      code={code}
+      camera={camera}
+      director={director}
+      io={io}
+      foreheadTilt={foreheadTilt}
+      debug={debug}
+      setDebug={setDebug}
+      setEngine={setEngine}
+      onRenew={newRoom}
+    />
   );
 }
 
@@ -283,6 +302,7 @@ interface StageRoomProps {
   camera: ReturnType<typeof useCamera>;
   director: DirectorRouter;
   io: RefObject<Io>;
+  foreheadTilt: RefObject<ForeheadTilt>;
   debug: DebugState;
   setDebug: Dispatch<SetStateAction<DebugState>>;
   setEngine: (e: ScanEngine) => void;
@@ -290,7 +310,7 @@ interface StageRoomProps {
 }
 
 /** Everything tied to one Room. Keyed by code, so a fresh Room starts from clean connection state. */
-function StageRoom({ code, camera, director, io, debug, setDebug, setEngine, onRenew }: StageRoomProps) {
+function StageRoom({ code, camera, director, io, foreheadTilt, debug, setDebug, setEngine, onRenew }: StageRoomProps) {
   const onMessage = useCallback((s: Snapshot, ev?: RoomEvent) => director.onSnapshot(s, ev), [director]);
   const room = useRoom(code, 'stage', HELLO, onMessage);
   const snap = room.state;
@@ -386,7 +406,15 @@ function StageRoom({ code, camera, director, io, debug, setDebug, setEngine, onR
     screen = <Waiting code={code} camera={camera} selfView={selfView} />;
   } else {
     screen = (
-      <Game snap={snap} clockOffset={room.clockOffset} palVideo={call.view.video} selfView={selfView} cameraError={camera.error} lastFriend={lastFriend} />
+      <Game
+        snap={snap}
+        clockOffset={room.clockOffset}
+        palVideo={call.view.video}
+        selfView={selfView}
+        cameraError={camera.error}
+        lastFriend={lastFriend}
+        foreheadTilt={foreheadTilt}
+      />
     );
   }
 
@@ -533,9 +561,11 @@ interface GameProps {
   cameraError: string | null;
   /** The friend last seen in the call, to tell a swap from a first join. */
   lastFriend: Mode | null;
+  /** Where the PAL forehead's tilt is published for the ClueDirector. */
+  foreheadTilt: RefObject<ForeheadTilt>;
 }
 
-function Game({ snap, clockOffset, palVideo, selfView, cameraError, lastFriend }: GameProps) {
+function Game({ snap, clockOffset, palVideo, selfView, cameraError, lastFriend, foreheadTilt }: GameProps) {
   const { phase, round, pal } = snap;
   const ticking = phase === 'countdown' || phase === 'playing';
   const now = useTick(ticking, 100);
@@ -554,8 +584,21 @@ function Game({ snap, clockOffset, palVideo, selfView, cameraError, lastFriend }
   const heard = phase === 'playing' && round?.current?.heardAt !== undefined;
   const recap = phase === 'recap';
   const friend = pal.mode ?? 'guess';
-  // Clue mode only: the Word on the PAL forehead. Guess mode's Word never shows on the Stage.
-  const forehead = phase === 'playing' && round?.mode === 'clue' ? round.current : null;
+  // Clue mode only: the Word on the PAL forehead phone. Guess mode's Word never shows on the Stage, and outside a
+  // Clue Round the phone is fed 'lobby' (hidden), so a Guess Round never runs it.
+  const clueRound = round?.mode === 'clue' ? round : null;
+  const forehead = usePalForehead({
+    phase: clueRound ? phase : 'lobby',
+    countdown: clueRound ? countdown : null,
+    current: clueRound?.current ?? null,
+  });
+  const foreheadTiltFn = forehead.tilt;
+  useEffect(() => {
+    foreheadTilt.current = foreheadTiltFn;
+    return () => {
+      foreheadTilt.current = null;
+    };
+  }, [foreheadTilt, foreheadTiltFn]);
   const showName = pal.status === 'ready' && palVideo !== null;
 
   return (
@@ -585,56 +628,40 @@ function Game({ snap, clockOffset, palVideo, selfView, cameraError, lastFriend }
 
       <main className="stage-arena">
         <div className="stage-hero-wrap">
-          {forehead && <PalForehead key={forehead.wordId} word={forehead.word} friend={FRIENDS[friend].name} />}
-          <div className="stage-hero-box">
-            <section className="stage-hero" aria-label={`Your PAL, ${FRIENDS[friend].name}`}>
-              <TrackVideo track={pal.status === 'ready' ? palVideo : null} className="stage-pal-video" />
-              <PalPanel snap={snap} hasVideo={palVideo !== null} lastFriend={lastFriend} />
-              {countdown !== null && (
-                <div className="stage-countdown" aria-live="assertive">
-                  <span key={countdown} className="stage-num">
-                    {countdown}
-                  </span>
-                </div>
-              )}
-              {(showName || heard) && (
-                <div className="stage-hero-tags">
-                  {showName && (
-                    <span className="stage-friend">
-                      {FRIENDS[friend].name}
-                      <span className="stage-friend-role">{friend === 'clue' ? 'guessing' : 'giving clues'}</span>
-                    </span>
-                  )}
-                  {heard && (
-                    <p className="stage-heard" role="status">
-                      Heard it
-                    </p>
-                  )}
-                </div>
-              )}
-              <div className="stage-pip">
-                {cameraError ? <p className="stage-pip-error">Camera off</p> : selfView}
+          <section className={`stage-hero${clueRound ? ' is-clue' : ''}`} aria-label={`Your PAL, ${FRIENDS[friend].name}`}>
+            <TrackVideo track={pal.status === 'ready' ? palVideo : null} className="stage-pal-video" />
+            <PalPanel snap={snap} hasVideo={palVideo !== null} lastFriend={lastFriend} />
+            {/* In a Clue Round the countdown is on the PAL forehead phone instead. */}
+            {countdown !== null && !clueRound && (
+              <div className="stage-countdown" aria-live="assertive">
+                <span key={countdown} className="stage-num">
+                  {countdown}
+                </span>
               </div>
-            </section>
-          </div>
+            )}
+            {clueRound && <PalForehead view={forehead.view} />}
+            {(showName || heard) && (
+              <div className="stage-hero-tags">
+                {showName && (
+                  <span className="stage-friend">
+                    {FRIENDS[friend].name}
+                    <span className="stage-friend-role">{friend === 'clue' ? 'guessing' : 'giving clues'}</span>
+                  </span>
+                )}
+                {heard && (
+                  <p className="stage-heard" role="status">
+                    Heard it
+                  </p>
+                )}
+              </div>
+            )}
+            <div className="stage-pip">
+              {cameraError ? <p className="stage-pip-error">Camera off</p> : selfView}
+            </div>
+          </section>
         </div>
         {recap && <Recap snap={snap} />}
       </main>
-    </div>
-  );
-}
-
-/**
- * The Word on the PAL forehead (Clue mode): the Player reads it like a friend's card. The PAL can't see it. No
- * aria-live: a screen reader saying it out loud could reach the PAL through the mic.
- */
-function PalForehead({ word, friend }: { word: string; friend: string }) {
-  return (
-    <div className="stage-forehead">
-      <div className="sticky stage-forehead-card" style={{ '--tilt': '-1.5deg' } as CSSProperties}>
-        <span className="stage-forehead-label">On {friend}'s forehead</span>
-        <span className="stage-forehead-word">{word}</span>
-      </div>
     </div>
   );
 }

@@ -423,7 +423,7 @@ function ClueIdle({ countdown, seconds, score }: { countdown: number | null; sec
       <div className="sticky ctl-message-note" style={tiltStyle(0)}>
         <h1>Put the phone down</h1>
         <p>
-          {friend}'s guessing. Read the Word above her head and give her Clues!
+          {friend}'s guessing. Read the Word on her forehead and give her Clues!
         </p>
       </div>
       <div className="ctl-clue-hud" aria-live="polite">

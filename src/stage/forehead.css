@@ -1,20 +1,21 @@
 /* PAL forehead (Clue mode): a phone held sideways on the PAL's head, over the top-centre of the 16:9 hero.
-   A fixed spot, not head tracking: tune --forehead-top / --forehead-width to the Clue PAL's face.
+   A fixed spot, not head tracking: tune --forehead-top / --forehead-width / --forehead-tip to the Clue PAL's face, set
+   on any ancestor (they are not declared here, only read with fallbacks, so an ancestor's value wins).
    The bottom edge should sit about at the hairline, never over the eyes. The screen copies the Controller's look. */
 
 .forehead {
-  /* % of the hero box. Negative top tucks the phone's top under the hero's top edge, so it reads as resting on the head. */
-  --forehead-top: -2%;
-  --forehead-width: 28%;
-  /* How far a tip turns: enough to read as a nod, little enough that the flash stays readable. */
-  --forehead-tip: 38deg;
+  /* Defaults (% of the hero box): --forehead-top 3%, --forehead-width 22%, --forehead-tip 38deg.
+     The whole phone stays inside the hero, which clips (overflow: hidden) and on laptops sits right under the timebar,
+     so there is no room above it. A small positive top keeps the top bezel in view; a tip pivots on the bottom edge and
+     only brings the top edge down, so upright is the highest the phone reaches.
+     The tip is enough to read as a nod, little enough that the flash stays readable. */
   --forehead-frame: #0d0e2b;
 
   position: absolute;
   z-index: 2;
-  top: var(--forehead-top);
+  top: var(--forehead-top, 3%);
   left: 50%;
-  width: var(--forehead-width);
+  width: var(--forehead-width, 22%);
   transform: translateX(-50%);
   perspective: 60rem;
   pointer-events: none;
@@ -80,14 +81,18 @@
 }
 
 .forehead-word {
+  /* Always one line, never broken mid-word. The screen's inner width is 92cqw; a long Word gets a smaller font from
+     its length (--forehead-chars, set by PalForehead) at <= 0.62em per character, which every deck Word in Permanent
+     Marker stays under (widest: "real estate agent", "choreographer"). Short Words keep the full size. */
+  --forehead-fit: calc(88cqw / (var(--forehead-chars, 1) * 0.62));
   max-width: 100%;
   font-family: var(--marker);
-  font-size: 13cqw;
-  overflow-wrap: anywhere;
+  font-size: min(13cqw, var(--forehead-fit));
+  white-space: nowrap;
 }
 
 .forehead-screen.is-flash .forehead-word {
-  font-size: 11cqw;
+  font-size: min(11cqw, var(--forehead-fit));
 }
 
 /* Same as .ctl-reveal-label. */
@@ -126,11 +131,11 @@
   }
 
   .forehead-phone.tip-forward {
-    transform: rotateX(calc(-1 * var(--forehead-tip)));
+    transform: rotateX(calc(-1 * var(--forehead-tip, 38deg)));
   }
 
   .forehead-phone.tip-back {
-    transform: rotateX(var(--forehead-tip));
+    transform: rotateX(var(--forehead-tip, 38deg));
   }
 
   .forehead-count {

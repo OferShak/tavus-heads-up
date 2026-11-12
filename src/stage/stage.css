@@ -246,72 +246,17 @@ html:has(.stage) {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
 }
 
-/* The hero keeps 16:9 inside whatever space is left (below the PAL forehead in Clue mode). */
+/* The hero keeps 16:9 inside whatever space is left. */
 .stage-hero-wrap {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.9rem;
-}
-
-.stage-hero-box {
   container-type: size;
-  flex: 1;
-  align-self: stretch;
   min-width: 0;
   min-height: 0;
   display: grid;
   place-items: center;
 }
 
-.stage-game.is-recap .stage-hero-box {
+.stage-game.is-recap .stage-hero-wrap {
   place-items: start center;
-}
-
-/* PAL forehead (Clue mode): the Word on a sticky note just above the PAL, read like a friend's card. */
-.stage-forehead {
-  flex: none;
-  display: flex;
-  justify-content: center;
-  padding-top: 0.5rem;
-  animation: stage-forehead-in 260ms var(--ease) both;
-}
-
-.stage-forehead-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.15rem;
-  min-width: 16rem;
-  max-width: min(90%, 40rem);
-  padding: 0.6rem 2rem 0.75rem;
-  text-align: center;
-}
-
-.stage-forehead-label {
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-
-.stage-forehead-word {
-  font-size: 3.75rem;
-  font-weight: 900;
-  font-stretch: 75%;
-  line-height: 1;
-  text-wrap: balance;
-  overflow-wrap: anywhere;
-}
-
-@keyframes stage-forehead-in {
-  from {
-    opacity: 0;
-    transform: translateY(-0.6rem);
-  }
 }
 
 .stage-hero {
@@ -408,6 +353,17 @@ html:has(.stage) {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+/* Clue Round: the PAL forehead phone sits over the top-centre (--forehead-width, default 22%, forehead.css), so the
+   tags keep to the left of it and wrap rather than run under it. */
+.stage-hero.is-clue .stage-hero-tags {
+  max-width: calc((100% - var(--forehead-width, 22%)) / 2 - 1.5rem);
+  flex-wrap: wrap;
+}
+
+.stage-hero.is-clue .stage-friend {
+  flex-wrap: wrap;
 }
 
 .stage-friend {
@@ -736,13 +692,8 @@ html:has(.stage) {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .stage-hero-box {
+  .stage-hero-wrap {
     container-type: inline-size;
-    flex: none;
-  }
-
-  .stage-forehead-word {
-    font-size: 2.75rem;
   }
 
   .stage-hero {

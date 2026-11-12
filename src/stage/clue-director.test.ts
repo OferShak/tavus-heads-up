@@ -300,6 +300,31 @@ describe('ClueDirector', () => {
       expect(logs.every((l) => (l.data as { action: string }).action === 'outside_round')).toBe(true);
     });
 
+    it('calls onTilt once per sent tilt, not for duplicate, in-flight or outside-round calls', () => {
+      const onTilt = vi.fn();
+      const withTilt = new ClueDirector({
+        interact: (type, props) => sent.push({ type, props }),
+        report: (m) => reports.push(m),
+        now: () => Date.now(),
+        onTilt,
+      });
+      withTilt.onSnapshot(snap('lobby'));
+      withTilt.onPalJoined();
+      withTilt.onTavusEvent(tiltCall('down', 'lobby'));
+      start(withTilt);
+      d.onTavusEvent(tiltCall('down', 'a'));
+      d.onTavusEvent(tiltCall('down', 'a'));
+      d.onTavusEvent(tiltCall('up', 'b'));
+      expect(onTilt.mock.calls).toEqual([['got']]);
+      d.onSnapshot(snap('playing', W2, {}, { gotIt: 1 }), tiltEv(W1, 'got'));
+      d.onTavusEvent(tiltCall('up', 'c'));
+      expect(onTilt.mock.calls).toEqual([['got'], ['pass']]);
+      d.onSnapshot({ ...snap('recap'), round: null });
+      d.onTavusEvent(tiltCall('down', 'd'));
+      expect(onTilt.mock.calls).toEqual([['got'], ['pass']]);
+      expect(tilts().map((t) => t.outcome)).toEqual(['got', 'pass']);
+    });
+
     it('ignores other tools and bad directions, and logs every tilt payload raw', () => {
       start();
       d.onTavusEvent({ event_type: 'conversation.tool_call', inference_id: 'x', properties: { name: 'word_guessed' } });
