@@ -54,14 +54,6 @@ A practice trainer for the forehead guessing party game: train against a Tavus P
 - **The Reveal catches lies and Fouls.** After each tilt Maya hears the Word and reacts in one line. If you said the Word yourself, she calls the Foul. The tilt still stands.
 - **Hurry-ups.** Go quiet and she prods you ("come on, give me something!").
 
-## Tavus friction log
-
-Gaps I hit integrating CVI, each with what it cost, how I worked around it, and a suggested fix.
-
-- **Context overwrite keeps the chat history.** `conversation.overwrite_llm_context` replaces the context, not the history, so earlier Words and their clues stay in the LLM's view. In a real Round the PAL drifted back to the previous Word (chef while painter was current) and called `word_guessed` for it. I found it in the transcript from `GET /v2/conversations/{id}?verbose=true` (its `application.transcription_ready` event includes the tool calls). Workaround: the Heard it guard checks every call against the Player's own words. *Suggested:* say on the overwrite page that the history is kept, and how to reset it.
-- **The Markdown docs drop the event schemas.** The `.md` versions of the event pages, which `llms.txt` points agents to, contain only the title; the fields render only on the HTML page (checked 2026-11-12). A coding agent reading them gets no field names, which is how the Stage ended up accepting three guessed shapes for the tool name; the HTML page shows `properties.name`. *Suggested:* include the schema in the Markdown export.
-- **PAL names lose their colons.** Tavus strips colons from PAL names on save, so a lookup by the exact name misses. Workaround: the setup script finds each PAL by the id it recorded, falling back to a name match that ignores punctuation. *Suggested:* return an error instead of rewriting the name.
-
 ## Under the hood
 
 - **Tilt detection.** The Controller uses the pitch of the screen's normal, `asin(cos β · cos γ)`, which stays continuous through the ±90° gamma wrap of a landscape phone held upright and needs no orientation handling. Past ±35° a tilt fires (down = Got it, up = Pass); the phone must return within ±20° to re-arm, and it starts disarmed so picking it up can't score. iOS motion permission is requested on a tap. Without motion the Controller falls back to taps (left half Pass, right half Got it). A Screen Wake Lock keeps the phone awake during a Round.
