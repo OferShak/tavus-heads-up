@@ -1,6 +1,7 @@
 // Leak guard: did the PAL say the Word, or a part of it? Logged as a stat, never scored.
 
-function tokens(text: string): string[] {
+/** Lowercase, accent-stripped alphanumeric tokens. */
+export function tokens(text: string): string[] {
   return text
     .toLowerCase()
     .normalize('NFKD')

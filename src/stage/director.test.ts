@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NUDGE_DELAYS_MS, QR_FALLBACK_MS } from '../../shared/game';
+import { HEARD_CONFIRM_MS, NUDGE_DELAYS_MS, QR_FALLBACK_MS } from '../../shared/game';
 import type { ClientMsg, RoomEvent, Snapshot } from '../../shared/protocol';
 import { encodeWordQr } from '../../shared/qr';
 import type { Phase, RoundSummary } from '../../shared/room';
@@ -7,7 +7,9 @@ import {
   CALL_OUT_UNHEARD_PROMPT,
   HAD_IT_PROMPT,
   NEW_WORD_PROMPT,
+  NOT_QUITE_CORRECTION,
   PalDirector,
+  PREV_WORD_CORRECTION,
   ROUND_END_PROMPT,
   ROUND_START_PROMPT,
   toolName,
@@ -48,6 +50,7 @@ const tiltEvent = (wordId: string, word: string, outcome: 'got' | 'pass', heardA
   result: { wordId, word, outcome, tiltAt: Date.now(), ...(heardAt !== undefined ? { heardAt } : {}) },
 });
 
+// Tests that send no user utterances rely on the fallback: with no Player speech in the call, word_guessed is trusted.
 const toolCall = { event_type: 'conversation.tool_call', properties: { name: 'word_guessed' } };
 
 const summary: RoundSummary = {
@@ -243,6 +246,148 @@ describe('PalDirector', () => {
         expect(respondText()).toBe(NEW_WORD_PROMPT);
         prevId = id;
       }
+    });
+  });
+
+  describe('Heard it is confirmed against the Player\'s own words', () => {
+    const userSays = (speech: string) =>
+      d.onTavusEvent({ event_type: 'conversation.utterance', properties: { role: 'user', speech } });
+
+    it('regression: a word_guessed for the previous Word after a call-out does not credit the new Word', () => {
+      // Real transcript: "chef" clued, Player says "Pizza" and tilts Got it (a Tilt slip). "painter" is injected with
+      // the call-out prompt; the PAL drifts back to chef, the Player says "chef", and the PAL calls word_guessed.
+      d.onSnapshot(snap('playing', { wordId: 'w1', word: 'chef' }));
+      d.onQr(encodeWordQr('w1', 'chef'));
+      userSays('Pizza.');
+      d.onSnapshot(snap('playing', { wordId: 'w2', word: 'painter' }), tiltEvent('w1', 'chef', 'got'));
+      d.onQr(encodeWordQr('w2', 'painter'));
+      reports = [];
+      sent = [];
+      userSays('I said pizza.');
+      userSays('Uh, chef—');
+      d.onTavusEvent(toolCall);
+      // The Player's latest words say the last Word: the filler is cut off and corrected at once, no hold.
+      expect(types()).toEqual(['conversation.interrupt', 'conversation.echo']);
+      expect(sent[1].props).toMatchObject({ modality: 'text', text: PREV_WORD_CORRECTION, done: true });
+      vi.advanceTimersByTime(20_000);
+      expect(reports.filter((r) => r.t === 'heard')).toEqual([]);
+      expect(reports.filter((r) => r.t === 'nudge')).toEqual([]);
+      expect(types()).toEqual(['conversation.interrupt', 'conversation.echo']);
+    });
+
+    it('an older utterance of the previous Word followed by a newer miss still uses the hold', () => {
+      d.onSnapshot(snap('playing', { wordId: 'w1', word: 'chef' }));
+      d.onQr(encodeWordQr('w1', 'chef'));
+      d.onSnapshot(snap('playing', { wordId: 'w2', word: 'painter' }), tiltEvent('w1', 'chef', 'got'));
+      d.onQr(encodeWordQr('w2', 'painter'));
+      sent = [];
+      reports = [];
+      userSays('chef?');
+      userSays('a plumber?');
+      d.onTavusEvent(toolCall);
+      expect(sent).toEqual([]);
+      vi.advanceTimersByTime(HEARD_CONFIRM_MS);
+      expect(types()).toEqual(['conversation.interrupt', 'conversation.echo']);
+      expect(sent[1].props).toMatchObject({ text: PREV_WORD_CORRECTION });
+      expect(reports.filter((r) => r.t === 'heard')).toEqual([]);
+    });
+
+    it('a correct guess is still Heard it, with nudges', () => {
+      playW1();
+      userSays("it's a giraffe!");
+      d.onTavusEvent(toolCall);
+      expect(reports).toEqual([{ t: 'heard', wordId: 'w1' }]);
+      vi.advanceTimersByTime(NUDGE_DELAYS_MS[0]);
+      expect(reports).toContainEqual({ t: 'nudge', wordId: 'w1' });
+      expect(types()).not.toContain('conversation.interrupt');
+    });
+
+    it('a tool call that lands before the utterance is accepted when a matching one arrives in the window', () => {
+      playW1();
+      userSays('a zebra?');
+      d.onTavusEvent(toolCall);
+      d.onTavusEvent(toolCall); // a duplicate while waiting is ignored
+      expect(reports).toEqual([]);
+      vi.advanceTimersByTime(HEARD_CONFIRM_MS - 1);
+      userSays('Giraffes!');
+      expect(reports).toEqual([{ t: 'heard', wordId: 'w1' }]);
+      vi.advanceTimersByTime(NUDGE_DELAYS_MS[0]);
+      expect(reports).toContainEqual({ t: 'nudge', wordId: 'w1' });
+      expect(types()).not.toContain('conversation.interrupt');
+    });
+
+    it('rejects a tool call when no matching utterance arrives in the window, with a correction', () => {
+      playW1();
+      userSays('a zebra?');
+      d.onTavusEvent(toolCall);
+      vi.advanceTimersByTime(HEARD_CONFIRM_MS - 1);
+      expect(sent).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(types()).toEqual(['conversation.interrupt', 'conversation.echo']);
+      expect(sent[1].props).toMatchObject({ text: NOT_QUITE_CORRECTION });
+      vi.advanceTimersByTime(20_000);
+      expect(reports).toEqual([]);
+
+      // A later, real guess for the same Word still counts.
+      userSays('giraffe');
+      d.onTavusEvent(toolCall);
+      expect(reports).toEqual([{ t: 'heard', wordId: 'w1' }]);
+    });
+
+    it('reactions off: still rejects, but without the correction echo', () => {
+      d = make(false);
+      d.onSnapshot(snap('playing', { wordId: 'w1', word: 'giraffe' }));
+      d.onPalJoined();
+      d.onQr(encodeWordQr('w1', 'giraffe'));
+      sent = [];
+      reports = [];
+      userSays('a zebra?');
+      d.onTavusEvent(toolCall);
+      vi.advanceTimersByTime(20_000);
+      expect(reports).toEqual([]);
+      expect(types()).toEqual(['conversation.interrupt']);
+    });
+
+    it('trusts the tool call when the call never delivered any user utterance (fallback)', () => {
+      playW1();
+      d.onTavusEvent(toolCall);
+      expect(reports).toEqual([{ t: 'heard', wordId: 'w1' }]);
+    });
+
+    it('late Heard it (tool call between tilt and injection) still counts when the Player said the previous Word', () => {
+      playW1();
+      userSays('giraffe!');
+      d.onSnapshot(snap('playing', { wordId: 'w2', word: 'penguin' }), tiltEvent('w1', 'giraffe', 'pass'));
+      d.onTavusEvent(toolCall);
+      expect(reports).toEqual([{ t: 'heard', wordId: 'w1' }]);
+      d.onQr(encodeWordQr('w2', 'penguin'));
+      expect(sent.find((s) => s.type === 'conversation.respond')?.props?.text).toBe(HAD_IT_PROMPT);
+      reports = [];
+      vi.advanceTimersByTime(20_000);
+      expect(reports.filter((r) => r.t === 'nudge')).toEqual([]);
+    });
+
+    it('a pending tool call survives the tilt and is confirmed by speech before the next injection', () => {
+      playW1();
+      userSays('a zebra?');
+      d.onTavusEvent(toolCall);
+      d.onSnapshot(snap('playing', { wordId: 'w2', word: 'penguin' }), tiltEvent('w1', 'giraffe', 'got'));
+      userSays('giraffe');
+      expect(reports).toEqual([{ t: 'heard', wordId: 'w1' }]);
+      vi.advanceTimersByTime(QR_FALLBACK_MS);
+      expect(sent.find((s) => s.type === 'conversation.respond')?.props?.text).toBe(NEW_WORD_PROMPT);
+    });
+
+    it('late tool call without the previous Word in the Player\'s speech is rejected silently', () => {
+      playW1();
+      userSays('a zebra?');
+      d.onSnapshot(snap('playing', { wordId: 'w2', word: 'penguin' }), tiltEvent('w1', 'giraffe', 'got'));
+      sent = [];
+      d.onTavusEvent(toolCall);
+      vi.advanceTimersByTime(HEARD_CONFIRM_MS);
+      expect(reports.filter((r) => r.t === 'heard')).toEqual([]);
+      expect(types()).toEqual(['conversation.set_emotion', 'conversation.overwrite_llm_context', 'conversation.respond']);
+      expect(sent[2].props?.text).toBe(CALL_OUT_UNHEARD_PROMPT);
     });
   });
 

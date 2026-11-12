@@ -6,11 +6,16 @@
 //   camera (fallback: the Room's copy after QR_FALLBACK_MS) → overwrite the PAL's context → respond to
 //   start clueing. Heard it (tool call) starts Tilt nudges. Every PAL utterance is checked for leaks.
 //
+// Heard it is confirmed against the Player's own words: word_guessed carries no word, and the PAL has called it
+//   for an earlier Word it drifted back to. The Player's utterances are kept per Word (routed like tool calls),
+//   and a call only counts if that Word's speech says the Word, waiting up to HEARD_CONFIRM_MS for it.
+//
 // Tilt slips (the tilt disagrees with Heard it): the tilt stays final, but the PAL reacts like a friend would.
 //   No cheer for a "got" it never heard; "you had it!" for a pass on a Word it heard. Until the next Word is
 //   injected the PAL's context still holds the previous Word, so a tool call in that window belongs to it.
 
-import { NUDGE_DELAYS_MS, QR_FALLBACK_MS, type CategoryId } from '../../shared/game';
+import { HEARD_CONFIRM_MS, NUDGE_DELAYS_MS, QR_FALLBACK_MS, type CategoryId } from '../../shared/game';
+import { saysWord } from '../../shared/guess';
 import { leaksWord } from '../../shared/leak';
 import { countdownContext, lobbyContext, recapContext, wordContext } from '../../shared/pal-context';
 import type { ClientMsg, RoomEvent, Snapshot } from '../../shared/protocol';
@@ -40,12 +45,15 @@ const GOT_LINES = ['Yes!', 'Boom!', 'Nailed it!', 'Easy!', 'There it is!'];
 const PASS_LINES = ['Skip it!', 'Next!', 'Fine, next!', 'Moving on!'];
 const HAD_IT_LINES = ['You had it!', 'Wait, you said it!', 'No! You got that one!'];
 const NUDGE_LINES = ['Tilt it down!', 'You got it, tilt it!', 'Tilt! Tilt!'];
+/** Corrections when a word_guessed is rejected, so the PAL's "tilt it down!" filler doesn't stand. */
+export const PREV_WORD_CORRECTION = 'Wait, no! That was the last one. New word!';
+export const NOT_QUITE_CORRECTION = 'Hang on, not quite!';
 
 export const NEW_WORD_PROMPT = '[New word. Give your first clue now.]';
 export const CALL_OUT_UNHEARD_PROMPT =
-  '[New word. They tilted "got it" on the last word, but you never heard them say it. Call that out in a few playful words like a friend would, then give your first clue.]';
+  '[New word. They tilted "got it" on the last word, but you never heard them say it. Call that out in a few playful words like a friend would; it\'s too late for that one. Then give your first clue for the new word. Don\'t discuss the last word again.]';
 export const HAD_IT_PROMPT =
-  '[New word. They passed the last word even though they had said it. Tease them in a few words, then give your first clue.]';
+  '[New word. They passed the last word even though they had said it. Tease them in a few words; it\'s too late for that one. Then give your first clue for the new word. Don\'t discuss the last word again.]';
 export const ROUND_START_PROMPT = '[Round starting. Hype them up in five words or fewer.]';
 export const ROUND_END_PROMPT = '[Round over. React to their score in one or two sentences, then tell them to go again.]';
 
@@ -61,11 +69,18 @@ interface WordCtx {
   heard: boolean;
   leaked: boolean;
   clueMeasured: boolean;
+  /** The Player's utterances while this Word was in the PAL's context. */
+  said: string[];
+  /** The Word the tilt replaced, to tell "said the last one" apart from a plain miss. */
+  prevWord?: string;
 }
 
 /** The Word a tilt just replaced, kept until the next Word is injected. */
 interface PrevWord {
   wordId: string;
+  word: string;
+  /** The Player's utterances for this Word, including those after the tilt and before the next injection. */
+  said: string[];
   outcome: 'got' | 'pass';
   heard: boolean;
   /** Heard it arrived after the tilt, before the next Word was injected. */
@@ -74,12 +89,22 @@ interface PrevWord {
 
 type TiltInfo = Extract<RoomEvent, { kind: 'tilt' }>['result'];
 
+/** A word_guessed call waiting for the Player's words to say its Word. */
+interface PendingHeard {
+  wordId: string;
+  word: string;
+  timer: unknown;
+}
+
 export class PalDirector {
   private phase: Snapshot['phase'] | null = null;
   private snap: Snapshot | null = null;
   private word: WordCtx | null = null;
   private prev: PrevWord | null = null;
   private seenUtterances = new Set<string>();
+  private pending: PendingHeard | null = null;
+  /** Any user utterance seen in this call. If none ever arrives, word_guessed is trusted as-is. */
+  private userSpeechSeen = false;
   /** True once the PAL is in the call: interactions before that are dropped by Tavus. */
   private live = false;
 
@@ -140,6 +165,7 @@ export class PalDirector {
   onPalJoined() {
     if (this.live) return;
     this.live = true;
+    this.userSpeechSeen = false;
     if (this.snap && this.snap.phase !== 'playing') {
       this.send('conversation.overwrite_llm_context', { context: lobbyContext(...this.ctxArgs()) });
       return;
@@ -155,12 +181,27 @@ export class PalDirector {
 
   private newWord(wordId: string, word: string, category: CategoryId, tilt?: TiltInfo | null) {
     const old = this.word;
-    this.dropWord();
+    // A pending word_guessed survives the tilt: its Word becomes the previous one and can still be confirmed.
+    this.dropWord(true);
     if (tilt) {
-      const heard = (old?.wordId === tilt.wordId && old.heard) || tilt.heardAt !== undefined;
-      this.prev = { wordId: tilt.wordId, outcome: tilt.outcome, heard, heardLate: false };
+      const same = old?.wordId === tilt.wordId;
+      const heard = (same && old.heard) || tilt.heardAt !== undefined;
+      const said = same ? old.said : [];
+      this.prev = { wordId: tilt.wordId, word: tilt.word, said, outcome: tilt.outcome, heard, heardLate: false };
     }
-    this.word = { wordId, word, category, arrivedAt: this.d.now(), injected: false, nudgeTimers: [], heard: false, leaked: false, clueMeasured: false };
+    this.word = {
+      wordId,
+      word,
+      category,
+      arrivedAt: this.d.now(),
+      injected: false,
+      nudgeTimers: [],
+      heard: false,
+      leaked: false,
+      clueMeasured: false,
+      said: [],
+      prevWord: tilt?.word ?? old?.word,
+    };
     // Cut off the stale clue immediately; react while the camera reads the next Word.
     this.send('conversation.interrupt');
     const p = this.prev;
@@ -204,7 +245,8 @@ export class PalDirector {
     return NEW_WORD_PROMPT;
   }
 
-  private dropWord() {
+  private dropWord(keepPending = false) {
+    if (!keepPending) this.clearPending();
     this.prev = null;
     const w = this.word;
     if (!w) return;
@@ -224,7 +266,10 @@ export class PalDirector {
         if (toolName(p) === 'word_guessed') this.onHeard();
         return;
       case 'conversation.utterance': {
-        if (!isPal || typeof p.speech !== 'string') return;
+        if (typeof p.speech !== 'string') return;
+        // Tavus sends each user turn once (role "user"); a repeat would be harmless, matching is idempotent.
+        if (role === 'user') return this.onPlayerSpeech(p.speech);
+        if (!isPal) return;
         // Tavus sends PAL events twice (role "pal" and legacy "replica"); check each utterance once.
         const key = `${ev.inference_id ?? ''}:${p.speech}`;
         if (this.seenUtterances.has(key)) return;
@@ -250,13 +295,64 @@ export class PalDirector {
     }
   }
 
+  /** Where the PAL's context is: the injected Word, or the previous Word between a tilt and the next injection. */
+  private speechTarget(): WordCtx | PrevWord | null {
+    const w = this.word;
+    if (!w || this.phase !== 'playing') return null;
+    return w.injected ? w : this.prev;
+  }
+
+  private onPlayerSpeech(speech: string) {
+    this.userSpeechSeen = true;
+    const t = this.speechTarget();
+    if (!t) return;
+    t.said.push(speech);
+    const pend = this.pending;
+    if (pend && pend.wordId === t.wordId && saysWord(speech, t.word)) {
+      this.clearPending();
+      this.acceptHeard(t.wordId);
+    }
+  }
+
   private onHeard() {
+    const t = this.speechTarget();
+    if (!t || t.heard || this.pending) return;
+    // Fallback: if Tavus never delivered a user utterance in this call, trust the tool call (no way to check).
+    if (!this.userSpeechSeen || t.said.some((s) => saysWord(s, t.word))) {
+      this.acceptHeard(t.wordId);
+      return;
+    }
+    // The Player's latest words say the previous Word (the PAL drifted back to it): reject now, before its
+    // "tilt it down!" filler gets them to tilt. Waiting out the hold would come too late.
+    const w = this.word;
+    const last = t === w ? w.said.at(-1) : undefined;
+    if (w && last !== undefined && w.prevWord !== undefined && saysWord(last, w.prevWord) && !saysWord(last, w.word)) {
+      this.rejectHeard(w.wordId);
+      return;
+    }
+    // The tool call can land before the utterance that triggered it: give the Player's words a short window.
+    const pend: PendingHeard = { wordId: t.wordId, word: t.word, timer: undefined };
+    pend.timer = this.d.setTimer(() => {
+      if (this.pending !== pend) return;
+      this.pending = null;
+      this.rejectHeard(pend.wordId);
+    }, HEARD_CONFIRM_MS);
+    this.pending = pend;
+  }
+
+  private clearPending() {
+    if (this.pending) this.d.clearTimer(this.pending.timer);
+    this.pending = null;
+  }
+
+  /** Heard it for a Word that is still the injected Word or the previous one. */
+  private acceptHeard(wordId: string) {
     const w = this.word;
     if (!w || this.phase !== 'playing') return;
-    if (!w.injected) {
+    if (!w.injected || w.wordId !== wordId) {
       // The PAL's context still holds the previous Word: this is a late Heard it for it. No nudges (already tilted).
       const p = this.prev;
-      if (p && !p.heard) {
+      if (p && p.wordId === wordId && !p.heard) {
         p.heard = p.heardLate = true;
         this.d.report({ t: 'heard', wordId: p.wordId });
       }
@@ -273,6 +369,17 @@ export class PalDirector {
         this.send('conversation.echo', { modality: 'text', text: this.pick(NUDGE_LINES), done: true });
       }, ms),
     );
+  }
+
+  /** The PAL called word_guessed but the Player never said the Word: cut off its "tilt it!" filler and correct it. */
+  private rejectHeard(wordId: string) {
+    const w = this.word;
+    // Only correct out loud while that Word is still the one being clued; after a tilt the next Word takes over.
+    if (!w || !w.injected || w.wordId !== wordId || this.phase !== 'playing') return;
+    this.send('conversation.interrupt');
+    if (this.d.reactions === false) return;
+    const saidPrev = w.prevWord !== undefined && w.said.some((s) => saysWord(s, w.prevWord!));
+    this.send('conversation.echo', { modality: 'text', text: saidPrev ? PREV_WORD_CORRECTION : NOT_QUITE_CORRECTION, done: true });
   }
 
   dispose() {

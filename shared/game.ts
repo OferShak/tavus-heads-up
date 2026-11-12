@@ -11,6 +11,8 @@ export const COUNTDOWN_MS = 3_000;
 export const QR_FALLBACK_MS = 1_500;
 /** Tilt nudges after Heard it with no tilt. */
 export const NUDGE_DELAYS_MS = [2_500, 6_000] as const;
+/** How long a word_guessed call waits for the Player's own words to say the Word before it is rejected. */
+export const HEARD_CONFIRM_MS = 1_500;
 /** How long the Controller shows the revealed Word after a tilt. */
 export const REVEAL_MS = 600;
 

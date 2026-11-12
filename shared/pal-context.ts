@@ -40,6 +40,7 @@ export function wordContext(nickname: string, stats: PlayerSummary | null, categ
   return [
     `GAME STATE: Round in progress. Category: ${CATEGORIES[category].name}.`,
     `CURRENT SECRET WORD: "${word}". Never say it or any part of it. Clue only this word; earlier words are gone.`,
+    `Earlier words are closed: if the Player says one it doesn't count, so tell them that one's gone and keep clueing the current word. Only call word_guessed for the CURRENT SECRET WORD.`,
     playerBlock(nickname, stats),
   ].join('\n');
 }

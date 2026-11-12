@@ -22,8 +22,12 @@ The QR on the Stage that a phone scans to join a Room.
 _Avoid_: room code QR
 
 **Word QR**:
-The QR on the Controller encoding the current Word; unreadable to the Player, decoded by the Stage from the camera.
+The QR on the Controller encoding the current Word in Guess mode; unreadable to the Player, decoded by the Stage from the camera.
 _Avoid_: card, code
+
+**PAL forehead**:
+The spot above the PAL's video on the Stage where the Word is shown in Clue mode, like reading a friend's forehead; the PAL can't see it.
+_Avoid_: card, banner
 
 ### Game
 
@@ -55,16 +59,24 @@ _Avoid_: game, turn
 The secret answer in play, hidden from whoever is guessing (the Player in Guess mode, the PAL in Clue mode).
 _Avoid_: card, answer, prompt
 
+**Clue**:
+A short spoken hint at the Word from whoever can see it (the PAL in Guess mode, the Player in Clue mode); never contains the Word or any part of it.
+_Avoid_: hint
+
 **Got it** / **Pass**:
 The two outcomes of a Word, decided only by the Player's tilt: down = Got it, up = Pass. The PAL never scores.
 _Avoid_: correct/skip
 
 **Heard it**:
-The moment the PAL hears the Player say the right Word (PAL tool call); it feeds Training stats only, never scoring.
+The moment the PAL hears the Player say the right Word (PAL tool call); it feeds Training stats only, never scoring. The PAL's call counts only when the Player's own words (their transcribed speech) say the current Word.
 _Avoid_: correct guess, PAL-judged
 
 **Tilt nudge**:
 The PAL's spoken reminder to tilt down when Heard it happened but no tilt followed in time.
+
+**Silence nudge**:
+A fresh Clue the PAL gives unprompted when the Player has gone quiet too long after a Clue, like friends who never let dead air sit.
+_Avoid_: hint, extra hint, re-clue
 
 **Tilt slip**:
 A tilt that disagrees with Heard it: a Pass on a Word the PAL heard the Player say, or a Got it on a Word the PAL (in the call) never heard.
@@ -87,7 +99,10 @@ _Avoid_: analytics, metrics
 - A **Round** presents a sequence of **Words**; each ends as **Got it** or **Pass**
 - Only a tilt produces **Got it** / **Pass**; **Heard it** without a tilt triggers a **Tilt nudge**
 - A **Tilt slip** still scores as tilted; the **PAL** calls it out and **Training stats** count it, keeping the two kinds (Pass after **Heard it**, Got it never heard) apart
-- The **Stage** decodes the **Word QR** from the camera and injects the **Word** into the **PAL**; if decoding fails, the **Room**'s copy is injected instead
+- In **Guess mode**, **Silence nudges** happen only while the current **Word** is being clued and before **Heard it** (after it, **Tilt nudges** take over); they escalate: a fresh angle, then "sounds like" / rhymes, then "just pass it!" with one more **Clue**. Only a tilt still scores
+- The **Round** recap counts **Silence nudges** per **Word**; they are not a lifetime **Training stat**
+- In **Guess mode**, the **Stage** decodes the **Word QR** from the camera and injects the **Word** into the **PAL**; if decoding fails, the **Room**'s copy is injected instead
+- In **Clue mode**, the **Word** is shown only on the **PAL forehead** (the **Controller** never shows it); the **PAL** is never given the **Word**, but still sees the **Player** through the camera, so faces and miming count as clues
 
 ## Example dialogue
 
