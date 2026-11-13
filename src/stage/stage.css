@@ -57,17 +57,28 @@ html:has(.stage) {
 .stage-top {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
 }
 
+/* "How it's built": a small outlined pill, readable on the ink background but quieter than the Join QR note. */
 .stage-howlink {
-  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.9rem;
+  border: 1.5px solid color-mix(in srgb, var(--paper) 70%, transparent);
+  border-radius: 999px;
+  color: var(--paper);
   font-size: 0.9rem;
-  text-underline-offset: 0.2em;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background-color 120ms var(--ease), color 120ms var(--ease);
 }
 
 .stage-howlink:hover {
-  color: var(--paper);
+  background: var(--paper);
+  color: var(--ink);
 }
 
 .stage-waiting-main {
@@ -107,6 +118,17 @@ html:has(.stage) {
   font-stretch: 87.5%;
   line-height: 1.12;
   text-wrap: balance;
+}
+
+.stage-waiting-how {
+  margin-top: 1rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 1.1rem;
+  font-size: 1rem;
+}
+
+.stage-waiting-how:hover {
+  border-color: var(--paper);
 }
 
 .stage-waiting-alt {
@@ -178,6 +200,14 @@ html:has(.stage) {
 }
 
 .stage-hud .stage-logo {
+  align-self: center;
+}
+
+.stage-hud.has-howlink {
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+}
+
+.stage-hud .stage-howlink {
   align-self: center;
 }
 
@@ -681,6 +711,10 @@ html:has(.stage) {
   .stage-hud {
     grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 1rem;
+  }
+
+  .stage-hud.has-howlink {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
   }
 
   .stage-hud .stage-logo {

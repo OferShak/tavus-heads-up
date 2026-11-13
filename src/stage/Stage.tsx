@@ -507,6 +507,16 @@ function PalAudio({ track }: { track: MediaStreamTrack | null }) {
 
 // ---------- Waiting ----------
 
+/** The "How it's built" pill. Between Rounds it opens a new tab: leaving the Stage would drop the PAL call. */
+function HowLink({ newTab = false }: { newTab?: boolean }) {
+  return (
+    <a className="stage-howlink" href="/how" {...(newTab ? { target: '_blank', rel: 'noopener' } : {})}>
+      How it's built
+      {newTab && <span className="sr-only"> (opens in a new tab)</span>}
+    </a>
+  );
+}
+
 function Waiting({ code, camera, selfView }: { code: string; camera: ReturnType<typeof useCamera>; selfView: ReactNode }) {
   const joinOrigin = useJoinOrigin();
   const joinUrl = `${joinOrigin}/j/${code}`;
@@ -514,9 +524,7 @@ function Waiting({ code, camera, selfView }: { code: string; camera: ReturnType<
     <div className="stage stage-waiting">
       <header className="stage-top">
         <span className="wordmark stage-logo">Over My Head</span>
-        <a className="stage-howlink" href="/how">
-          How it's built
-        </a>
+        <HowLink />
       </header>
       <main className="stage-waiting-main">
         <div className="sticky stage-join" style={{ '--tilt': '-3deg' } as CSSProperties}>
@@ -527,6 +535,9 @@ function Waiting({ code, camera, selfView }: { code: string; camera: ReturnType<
         </div>
         <div className="stage-waiting-side">
           <h1 className="stage-waiting-title">Scan the note with your phone, then hold the phone on your forehead.</h1>
+          <a className="btn secondary stage-waiting-how" href="/how">
+            How it's built →
+          </a>
           <p className="stage-waiting-alt">
             No scanner? Open <strong>{`${joinOrigin.replace(/^https?:\/\//, '')}/j/${code}`}</strong> on your phone.
           </p>
@@ -600,10 +611,12 @@ function Game({ snap, clockOffset, palVideo, selfView, cameraError, lastFriend, 
     };
   }, [foreheadTilt, foreheadTiltFn]);
   const showName = pal.status === 'ready' && palVideo !== null;
+  // Between Rounds only; hidden during the countdown and while playing.
+  const showHowLink = phase === 'lobby' || phase === 'recap';
 
   return (
     <div className={`stage stage-game${recap ? ' is-recap' : ''}`}>
-      <header className="stage-hud">
+      <header className={`stage-hud${showHowLink ? ' has-howlink' : ''}`}>
         <span className="wordmark stage-logo">Over My Head</span>
         {round ? (
           <div className="stage-hud-round">
@@ -621,6 +634,7 @@ function Game({ snap, clockOffset, palVideo, selfView, cameraError, lastFriend, 
           <span className="stage-num">{secs}</span>
           <span className="stage-hud-unit">seconds</span>
         </div>
+        {showHowLink && <HowLink newTab />}
       </header>
       <div className="stage-timebar" aria-hidden="true">
         <span style={{ transform: `scaleX(${fraction})` }} />

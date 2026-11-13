@@ -12,6 +12,6 @@ What differs between the Modes lives on the PAL, and Create Conversation can't o
 
 ## Consequences
 
-- Clue mode (a stretch goal) can't regress the Guess mode PAL's prompt or tuning.
+- Clue mode can't regress the Guess mode PAL's prompt or tuning.
 - A Mode switch costs a conversation restart (join time not documented; to be measured) and drops chat history beyond the recap.
 - `scripts/setup-pal.ts` manages two PALs. The Clue PAL: same Sparrow-2 low patience / high interruptibility as the Guess PAL, `idle_engagement: eager` (Hurry-ups), raven-2 perception so miming counts, and one `tilt` tool.

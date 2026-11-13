@@ -1,4 +1,4 @@
-// The Clue mode director: the Clue PAL (Maya) guesses, the Player gives Clues (ADR 0004, write-up "Stretch: Clue mode").
+// The Clue mode director: the Clue PAL (Maya) guesses, the Player gives Clues (ADR 0004, write-up "How it plays").
 // Plain class with injected I/O and timers, like PalDirector, so it can be unit tested without a call. It runs only
 // while the friend in the call is the Clue friend; none of Guess mode's machinery (Silence nudges, Tilt nudges,
 // Heard it, Word QR, leak guard) exists here.
