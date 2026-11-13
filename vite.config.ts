@@ -4,8 +4,8 @@ import { cloudflare } from '@cloudflare/vite-plugin';
 import { devOrigin } from './scripts/vite-tunnel.ts';
 
 export default defineConfig({
-  // devOrigin goes before cloudflare() so its dev middleware runs before the Worker's.
-  plugins: [react(), devOrigin({ tunnel: process.env.OMH_TUNNEL === '1' }), cloudflare()],
+  // devOrigin (dev server only: Quick Tunnel + join origin) goes before cloudflare() so its dev middleware runs before the Worker's.
+  plugins: [react(), devOrigin(), cloudflare()],
   optimizeDeps: { exclude: ['zxing-wasm'] },
   server: {
     port: 5173,

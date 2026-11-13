@@ -18,6 +18,11 @@ function room(env: Env, code: string) {
   return env.ROOM.get(env.ROOM.idFromName(code));
 }
 
+/** Tavus is set up: a key and both Modes' PAL ids. The Stage blocks the game until it is (see /api/health). */
+function palConfigured(env: Pick<Env, 'TAVUS_API_KEY' | 'TAVUS_PAL_ID' | 'TAVUS_CLUE_PAL_ID'>): boolean {
+  return Boolean(env.TAVUS_API_KEY && env.TAVUS_PAL_ID && env.TAVUS_CLUE_PAL_ID);
+}
+
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
@@ -49,7 +54,7 @@ export default {
       return room(env, code).fetch(request);
     }
 
-    if (path === '/api/health') return json({ ok: true, pal: Boolean(env.TAVUS_API_KEY && env.TAVUS_PAL_ID) });
+    if (path === '/api/health') return json({ ok: true, pal: palConfigured(env) });
 
     return new Response('not found', { status: 404 });
   },
