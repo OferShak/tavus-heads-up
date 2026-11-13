@@ -1,1 +1,3 @@
 TAVUS_API_KEY=your-tavus-api-key
+# Zero-minute test mode: Tavus creates conversations but the PAL never joins.
+# TAVUS_TEST_MODE=1

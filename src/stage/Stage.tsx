@@ -220,9 +220,54 @@ function useCamera() {
   return { stream, error, retry };
 }
 
+// ---------- Setup gate ----------
+
+/** `pal` from /api/health: false only when Tavus isn't configured (key or a PAL id missing). */
+type Health = 'checking' | 'ok' | 'unconfigured';
+const HEALTH_TIMEOUT_MS = 5_000;
+
+/** A failed or slow health check counts as ok: only a config the Worker reports as missing blocks the game. */
+function useHealth(): Health {
+  const [health, setHealth] = useState<Health>('checking');
+  useEffect(() => {
+    let off = false;
+    fetch('/api/health', { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) })
+      .then((res) => (res.ok ? (res.json() as Promise<{ pal?: unknown }>) : null))
+      .then(
+        (body) => !off && setHealth(body?.pal === false ? 'unconfigured' : 'ok'),
+        () => !off && setHealth('ok'),
+      );
+    return () => {
+      off = true;
+    };
+  }, []);
+  return health;
+}
+
+/** No Room, camera or Join QR until the Worker says Tavus is set up, so no phone can join and no Round can start. */
+export default function Stage() {
+  const health = useHealth();
+  if (health === 'ok') return <StageGame />;
+  return (
+    <div className="stage stage-plain">
+      <span className="wordmark stage-logo">Over My Head</span>
+      {health === 'checking' ? (
+        <p className="stage-plain-line">Setting up a Room…</p>
+      ) : (
+        <>
+          <p className="stage-plain-title">Tavus isn't set up</p>
+          <p className="stage-plain-line">
+            Put <code>TAVUS_API_KEY</code> in <code>.dev.vars</code>, run <code>npm run setup-pal</code>, then reload.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ---------- Stage ----------
 
-export default function Stage() {
+function StageGame() {
   const { code, failed, renew, retry } = useRoomCode();
   const camera = useCamera();
   const io = useRef<Io>(NO_IO);

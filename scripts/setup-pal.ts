@@ -239,9 +239,20 @@ async function listPals(): Promise<{ pal_id: string; pal_name: string }[]> {
 async function findPal(body: PalBody, idKey: string): Promise<LivePal | undefined> {
   const recorded = recordedPalId(idKey);
   if (recorded) {
-    const pal = await getPal(recorded);
+    // Another account's id (e.g. a fresh clone's wrangler.jsonc) can answer 403: replace it, don't crash.
+    let pal: LivePal | undefined;
+    let unreadable: string | undefined;
+    try {
+      pal = await getPal(recorded);
+    } catch (e) {
+      unreadable = e instanceof Error ? e.message : String(e);
+    }
     if (pal) return pal;
-    console.warn(`${idKey}=${recorded} not found on Tavus; looking up by name`);
+    console.warn(
+      unreadable
+        ? `${idKey}=${recorded} not readable with this key (${unreadable}); looking up by name`
+        : `${idKey}=${recorded} not found on Tavus; looking up by name`,
+    );
   }
   const match = (await listPals()).find((p) => nameKey(p.pal_name ?? '') === nameKey(body.pal_name));
   return match && getPal(match.pal_id);

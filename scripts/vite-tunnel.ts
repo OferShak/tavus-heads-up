@@ -1,6 +1,7 @@
-// Dev only: tell the Stage which origin a phone can reach, and optionally open a Cloudflare Quick Tunnel
-// (HTTPS, so DeviceOrientation tilt works on the phone). The tunnel is opt-in (`npm run dev:tunnel`)
-// because it exposes the dev server publicly.
+// Dev only: tell the Stage which origin a phone can reach, and open a Cloudflare Quick Tunnel
+// (HTTPS, so DeviceOrientation tilt works on the phone). Always on under `npm run dev`: a phone always
+// joins. The tunnel makes the dev server public while it runs. Without cloudflared it warns and the
+// dev server keeps running on the LAN address.
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import type { AddressInfo } from 'node:net';
@@ -23,8 +24,8 @@ function lanIPv4(): string | null {
  * `GET /__omh/dev-origin` → `{ tunnel, lan, tunnelEnabled }`. Registered directly in configureServer, and
  * placed before `cloudflare()` in the plugin list, so it runs before the Worker middleware.
  */
-export function devOrigin({ tunnel }: { tunnel: boolean }): Plugin {
-  const state = { tunnel: null as string | null, lan: null as string | null, tunnelEnabled: tunnel };
+export function devOrigin(): Plugin {
+  const state = { tunnel: null as string | null, lan: null as string | null, tunnelEnabled: true };
   let child: ChildProcess | null = null;
   /** Children we killed ourselves (server restart/close): their exit is expected, not worth a warning. */
   const killed = new WeakSet<ChildProcess>();
@@ -56,7 +57,6 @@ export function devOrigin({ tunnel }: { tunnel: boolean }): Plugin {
         const port = (http.address() as AddressInfo | null)?.port ?? server.config.server.port ?? 5173;
         const ip = lanIPv4();
         state.lan = ip ? `http://${ip}:${port}` : null;
-        if (!tunnel) return;
 
         log.info(`Starting a Cloudflare Quick Tunnel to http://localhost:${port}…`, { timestamp: true });
         let output = '';

@@ -8,7 +8,8 @@ export type Phase = 'waiting' | 'lobby' | 'countdown' | 'playing' | 'recap' | 'c
 
 /**
  * idle: no conversation yet · starting: Worker is creating it · joining: Stage is joining the call
- * ready: PAL is in the call · busy: concurrency cap hit · offline: no Tavus key (UI-only dev) · ended · error
+ * ready: PAL is in the call · busy: concurrency cap hit · ended · error
+ * offline: Rounds run without a PAL: Tavus test mode, or no key / Guess PAL id (the Stage gates that case; tests use it)
  */
 export type PalStatus = 'idle' | 'starting' | 'joining' | 'ready' | 'busy' | 'offline' | 'ended' | 'error';
 

@@ -26,7 +26,7 @@
     // "1" = Tavus creates the conversation but the PAL never joins (no minutes used).
     "TAVUS_TEST_MODE": "0"
   },
-  // Set with `wrangler secret put TAVUS_API_KEY` (and in .dev.vars locally). Without it the game runs, minus the PAL.
+  // Set with `wrangler secret put TAVUS_API_KEY` (and in .dev.vars locally). Without it (or a PAL id) the Stage shows a setup screen and the game won't start.
   "secrets": { "required": ["TAVUS_API_KEY"] },
   "observability": { "enabled": true }
 }
