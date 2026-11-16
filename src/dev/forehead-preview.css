@@ -93,3 +93,25 @@
   color: var(--muted);
   font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+/* Stand-in for the Self-view inside the placeholder .stage-pip. */
+.fhp-pip-label {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* About the Controller lobby's content width on a small phone. */
+.fhp-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: min(100%, 340px);
+}
+
+.fhp-demo-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}

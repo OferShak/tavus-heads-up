@@ -15,6 +15,7 @@ import { DirectorRouter, type SwapMeasure } from './director-router';
 import { PalForehead } from './PalForehead';
 import { usePalCall, type PalCallHandlers } from './pal-call';
 import { preloadScanner, startScanner, type ScanEngine } from './scanner';
+import { TiltNudgeDemo } from './TiltNudgeDemo';
 import { usePalForehead } from './usePalForehead';
 import './stage.css';
 
@@ -580,6 +581,9 @@ function Waiting({ code, camera, selfView }: { code: string; camera: ReturnType<
         </div>
         <div className="stage-waiting-side">
           <h1 className="stage-waiting-title">Scan the note with your phone, then hold the phone on your forehead.</h1>
+          <p className="stage-waiting-goal">
+            A friend on screen gives Clues. You guess the Word you can't see, then nod down for Got it or tilt back for Pass.
+          </p>
           <a className="btn secondary stage-waiting-how" href="/how">
             How it's built →
           </a>
@@ -643,6 +647,8 @@ function Game({ snap, clockOffset, palVideo, selfView, cameraError, lastFriend, 
   // Clue mode only: the Word on the PAL forehead phone. Guess mode's Word never shows on the Stage, and outside a
   // Clue Round the phone is fed 'lobby' (hidden), so a Guess Round never runs it.
   const clueRound = round?.mode === 'clue' ? round : null;
+  // Guess mode: once a Tilt nudge has fired on this Word, show the nod until the tilt brings a new Word.
+  const nudged = phase === 'playing' && !clueRound && (round?.current?.nudges ?? 0) > 0;
   const forehead = usePalForehead({
     phase: clueRound ? phase : 'lobby',
     countdown: clueRound ? countdown : null,
@@ -714,6 +720,7 @@ function Game({ snap, clockOffset, palVideo, selfView, cameraError, lastFriend, 
                 )}
               </div>
             )}
+            {nudged && <TiltNudgeDemo />}
             <div className="stage-pip">
               {cameraError ? <p className="stage-pip-error">Camera off</p> : selfView}
             </div>

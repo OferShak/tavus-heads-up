@@ -150,7 +150,14 @@ export class Room extends DurableObject<Env> {
             startsAt: r.startsAt,
             endsAt: r.endsAt,
             current: current
-              ? { wordId: current.wordId, word: current.word, position: current.position, shownAt: current.shownAt, heardAt: current.heardAt }
+              ? {
+                  wordId: current.wordId,
+                  word: current.word,
+                  position: current.position,
+                  shownAt: current.shownAt,
+                  heardAt: current.heardAt,
+                  nudges: current.nudges,
+                }
               : null,
             gotIt: r.results.filter((x) => x.outcome === 'got').length,
             passed: r.results.filter((x) => x.outcome === 'pass').length,
@@ -303,7 +310,8 @@ export class Room extends DurableObject<Env> {
         this.save(markLeak(s, msg.wordId));
         return;
       case 'nudge':
-        this.save(markNudge(s, msg.wordId));
+        // Broadcast: the Stage shows the nod-down animation once a Tilt nudge has fired on the current Word.
+        this.commit(markNudge(s, msg.wordId));
         return;
       case 'silence_nudge':
         this.save(markSilenceNudge(s, msg.wordId));

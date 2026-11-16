@@ -220,6 +220,57 @@
   font-weight: 600;
 }
 
+/* ---------- Guess mode how-to: goal line and tilt demo ---------- */
+
+.ctl-howto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.ctl-howto-goal {
+  font-size: var(--t-md);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ctl-tiltdemo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s-3);
+  max-width: 24rem;
+}
+
+.ctl-tiltdemo-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+/* Box for the PAL forehead, which is absolute (left 50%, top/width from these vars). The phone is 2.1:1 at 92% of
+   the box width; a box of 2:1 leaves a little headroom over it and room under it for the tip, which pivots on the
+   bottom edge and never rises above upright. */
+.ctl-tiltdemo-phone {
+  --forehead-top: 6%;
+  --forehead-width: 92%;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2;
+}
+
+/* The phones are small here: a bigger "Got it" / "Pass" than on the Stage so the flash still reads. */
+.ctl-tiltdemo-phone .forehead-label {
+  font-size: 10cqw;
+}
+
+.ctl-tiltdemo-caption {
+  font-size: var(--t-sm);
+  font-weight: 700;
+  text-align: center;
+}
+
 /* ---------- Countdown ---------- */
 
 .ctl-countdown {
@@ -237,6 +288,15 @@
 .ctl-countdown-hint {
   max-width: 22rem;
   font-size: var(--t-xl);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ctl-countdown-dirs {
+  max-width: 22rem;
+  margin-top: calc(-1 * var(--s-3));
+  color: var(--muted);
+  font-size: var(--t-lg);
   font-weight: 700;
   line-height: 1.2;
 }

@@ -80,7 +80,7 @@ The moment the PAL hears the Player say the right Word (PAL tool call); it feeds
 _Avoid_: correct guess, PAL-judged
 
 **Tilt nudge**:
-The PAL's spoken reminder to tilt down when Heard it happened but no tilt followed in time.
+The PAL's spoken reminder to tilt down when Heard it happened but no tilt followed in time; the Stage also shows the nod-down animation next to the Self-view until the tilt.
 
 **Silence nudge**:
 A fresh Clue the PAL gives unprompted when the Player has gone quiet too long after a Clue, like friends who never let dead air sit.
