@@ -73,7 +73,8 @@ export interface Snapshot {
     mode?: Mode;
     startsAt: number;
     endsAt: number;
-    current: { wordId: string; word: string; position: number; shownAt: number; heardAt?: number } | null;
+    /** nudges: Tilt nudges so far on this Word (absent: none). */
+    current: { wordId: string; word: string; position: number; shownAt: number; heardAt?: number; nudges?: number } | null;
     gotIt: number;
     passed: number;
   } | null;

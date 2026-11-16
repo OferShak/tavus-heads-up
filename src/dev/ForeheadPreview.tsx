@@ -1,9 +1,13 @@
 // Dev-only preview of the PAL forehead (`/dev/forehead`), so it can be checked without Tavus or a Room.
 // The buttons stand in for the Room (countdown, next Word, time's up) and the PAL (its tilt tool call).
+// "Tilt nudge" shows the Stage's Guess mode nod-down callout, docked over a placeholder Self-view tile.
+// Under them, the Controller's Guess mode tilt demo at about phone width.
 
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, type Outcome } from '../../shared/game';
+import { TiltDemo } from '../controller/TiltDemo';
 import { PalForehead } from '../stage/PalForehead';
+import { TiltNudgeDemo } from '../stage/TiltNudgeDemo';
 import { usePalForehead, type ForeheadRoom } from '../stage/usePalForehead';
 import '../stage/stage.css';
 import './forehead-preview.css';
@@ -21,6 +25,7 @@ const positionOf = (wordId: string) => Number(wordId.split('-')[1]);
 export default function ForeheadPreview() {
   const [room, setRoom] = useState<ForeheadRoom>(LOBBY);
   const [dropNext, setDropNext] = useState(false);
+  const [nudge, setNudge] = useState(false);
   const [delayMs, setDelayMs] = useState(150);
   const [log, setLog] = useState<string[]>([]);
   const forehead = usePalForehead(room);
@@ -92,6 +97,10 @@ export default function ForeheadPreview() {
         <section className="stage-hero" aria-label="Your PAL">
           <PlaceholderPal />
           <PalForehead view={forehead.view} />
+          {nudge && <TiltNudgeDemo />}
+          <div className="stage-pip">
+            <p className="fhp-pip-label">Self-view</p>
+          </div>
         </section>
       </div>
 
@@ -119,11 +128,20 @@ export default function ForeheadPreview() {
           Room drops the next tilt
         </label>
         <label className="fhp-field">
+          <input type="checkbox" checked={nudge} onChange={(e) => setNudge(e.target.checked)} />
+          Tilt nudge
+        </label>
+        <label className="fhp-field">
           Room delay
           <input type="number" min={0} step={50} value={delayMs} onChange={(e) => setDelayMs(Math.max(0, Number(e.target.value) || 0))} />
           ms
         </label>
       </div>
+
+      <section className="fhp-demo" aria-label="Controller tilt demo">
+        <span className="fhp-demo-label">Controller tilt demo (Guess mode lobby)</span>
+        <TiltDemo />
+      </section>
 
       <ol className="fhp-log" aria-label="Event log">
         {log.map((l, i) => (

@@ -120,6 +120,14 @@ html:has(.stage) {
   text-wrap: balance;
 }
 
+.stage-waiting-goal {
+  margin-top: 0.75rem;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
 .stage-waiting-how {
   margin-top: 1rem;
   min-height: 2.5rem;
@@ -441,6 +449,52 @@ html:has(.stage) {
   background: var(--ink);
 }
 
+/* Tilt nudge (Guess mode): a phone nodding down, docked right above the Self-view tile with the same width and right
+   edge. The tile is 24% of the hero's width at 16:9, so 24% of the hero's height: bottom = the tile's 1rem + its
+   height + a gap. The PAL's face is in the centre; this stays in the right quarter. */
+.stage-nudge {
+  position: absolute;
+  right: 1rem;
+  bottom: calc(1rem + 24% + 0.5rem);
+  width: 24%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  pointer-events: none;
+  animation: stage-nudge-in 220ms var(--ease) both;
+}
+
+/* Box for the PAL forehead (absolute: left 50%, top/width from these vars), like .ctl-tiltdemo-phone: a 2:1 box
+   leaves headroom over the 2.1:1 phone and room under it for the tip, which pivots on the bottom edge. */
+.stage-nudge-phone {
+  --forehead-top: 6%;
+  --forehead-width: 92%;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2;
+}
+
+/* Small phone: a bigger "Got it" than the PAL forehead's so the flash reads. */
+.stage-nudge-phone .forehead-label {
+  font-size: 10cqw;
+}
+
+.stage-nudge-caption {
+  padding: 0.2rem 0.8rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 82%, transparent);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@keyframes stage-nudge-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem);
+  }
+}
+
 .stage-pip-error {
   height: 100%;
   display: grid;
@@ -732,6 +786,12 @@ html:has(.stage) {
 
   .stage-hero {
     width: 100%;
+  }
+
+  /* The tile, and so the callout, can be under 6rem wide on a phone: a smaller caption stays inside the hero. */
+  .stage-nudge-caption {
+    padding: 0.15rem 0.6rem;
+    font-size: 0.8rem;
   }
 }
 

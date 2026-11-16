@@ -143,6 +143,34 @@ describe('Room Durable Object', () => {
     phone.ws.close();
   });
 
+  it("carries the current Word's Tilt nudges in the Stage's Snapshot until the Word changes", async () => {
+    const code = await newRoom();
+    const stage = await connect(code, 'stage');
+    stage.send({ t: 'hello', role: 'stage' });
+    await stage.state((s) => s.phase === 'waiting');
+    const phone = await connect(code, 'controller');
+    phone.send({ t: 'hello', role: 'controller', playerId: 'p-nudge' });
+    await phone.state((s) => s.phase === 'lobby' && s.pal.status === 'offline');
+    phone.send({ t: 'start', category: 'animals' });
+    await stage.state((s) => s.phase === 'countdown');
+    await runDurableObjectAlarm(roomStub(code));
+    const first = (await stage.state((s) => s.phase === 'playing')).round!.current!;
+    expect(first.nudges).toBeUndefined();
+
+    stage.send({ t: 'heard', wordId: first.wordId });
+    await stage.state((s) => s.round?.current?.heardAt !== undefined);
+    stage.send({ t: 'nudge', wordId: first.wordId });
+    const nudged = await stage.state((s) => s.round?.current?.nudges !== undefined);
+    expect(nudged.round!.current).toMatchObject({ wordId: first.wordId, nudges: 1 });
+
+    // The tilt moves on to a new Word, which starts with none.
+    phone.send({ t: 'tilt', wordId: first.wordId, outcome: 'got', via: 'tilt' });
+    const next = await stage.state((s) => s.round?.current?.wordId !== first.wordId);
+    expect(next.round!.current!.nudges).toBeUndefined();
+    stage.ws.close();
+    phone.ws.close();
+  });
+
   it('turns away a second phone', async () => {
     const code = await newRoom();
     const a = await connect(code, 'controller');

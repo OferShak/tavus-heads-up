@@ -4,6 +4,7 @@ import type { ClientMsg, Snapshot } from '../../shared/protocol';
 import { encodeWordQr } from '../../shared/qr';
 import { Qr } from '../lib/Qr';
 import { secondsLeft, useRoom, useTick } from '../lib/useRoom';
+import { TiltDemo } from './TiltDemo';
 import { initialTiltPermission, requestTiltPermission, useTilt, type TiltPermission } from './useTilt';
 import { bestsFor, controllerView, MODE_CHOICES, modeOf, palGate } from './view';
 import { useWakeLock } from './useWakeLock';
@@ -14,6 +15,8 @@ const NICK_KEY = 'omh.nickname';
 const NICK_MAX = 24;
 /** No next Word this long after a tilt: assume it was lost and accept input for the same Word again. */
 const UNLOCK_MS = 2_500;
+/** No motion reading this long after the motion permission settled: this phone gets the tap fallback. */
+const MOTION_GRACE_MS = 1_000;
 
 function readStorage(key: string): string | null {
   try {
@@ -136,6 +139,17 @@ export default function Controller({ code }: { code: string }) {
 
   const tilt = useTilt(canAnswer, (o) => answer(o, 'tilt'), current?.wordId ?? null);
 
+  // Known before the Round: the lobby and countdown tell a phone with no motion readings to tap instead. Waits for the
+  // iOS prompt to be answered, then a short grace for the first reading, so a working sensor never flashes the tap line.
+  const [motionSettled, setMotionSettled] = useState(false);
+  useEffect(() => {
+    setMotionSettled(false);
+    if (!joined || tiltPerm === 'unasked') return;
+    const id = setTimeout(() => setMotionSettled(true), MOTION_GRACE_MS);
+    return () => clearTimeout(id);
+  }, [joined, tiltPerm]);
+  const noMotion = !tilt.available && (tiltPerm === 'denied' || motionSettled);
+
   // ---------- screens ----------
 
   let screen: ReactNode;
@@ -159,7 +173,7 @@ export default function Controller({ code }: { code: string }) {
       screen = <Message title="Joining the game…" />;
       break;
     case 'countdown':
-      screen = <Countdown seconds={secondsLeft(round!.startsAt, now, clockOffset)} />;
+      screen = <Countdown seconds={secondsLeft(round!.startsAt, now, clockOffset)} noMotion={noMotion} />;
       break;
     case 'play':
       screen = (
@@ -185,7 +199,7 @@ export default function Controller({ code }: { code: string }) {
       );
       break;
     case 'lobby':
-      screen = <Lobby state={state!} onStart={onStart} onMode={onMode} onReconnect={() => send({ t: 'reconnect_pal' })} />;
+      screen = <Lobby state={state!} noMotion={noMotion} onStart={onStart} onMode={onMode} onReconnect={() => send({ t: 'reconnect_pal' })} />;
       break;
   }
 
@@ -329,13 +343,26 @@ function Categories({ state, enabled, onStart }: { state: Snapshot; enabled: boo
   );
 }
 
+/** Guess mode only: the goal and the two gestures, taught before the phone goes on the forehead. */
+function GuessHowTo({ noMotion }: { noMotion: boolean }) {
+  return (
+    <section className="ctl-howto" aria-label="How to play">
+      <p className="ctl-howto-goal">{FRIENDS.guess.name} gives Clues. Guess the Word out loud, then nod.</p>
+      <TiltDemo />
+      {noMotion && <p className="ctl-fine">No motion sensor: tap right for Got it, left for Pass.</p>}
+    </section>
+  );
+}
+
 function Lobby({
   state,
+  noMotion,
   onStart,
   onMode,
   onReconnect,
 }: {
   state: Snapshot;
+  noMotion: boolean;
   onStart: (c: CategoryId) => void;
   onMode: (m: Mode) => void;
   onReconnect: () => void;
@@ -348,15 +375,17 @@ function Lobby({
       <h1 className="ctl-title">{name ? `Hi ${name}, pick a category` : 'Pick a category'}</h1>
       <ModePicker state={state} onMode={onMode} />
       {notice}
+      {modeOf(state.mode) === 'guess' && <GuessHowTo noMotion={noMotion} />}
       <Categories state={state} enabled={canStart} onStart={onStart} />
     </main>
   );
 }
 
-function Countdown({ seconds }: { seconds: number }) {
+function Countdown({ seconds, noMotion }: { seconds: number; noMotion: boolean }) {
   return (
     <main className="ctl-countdown">
       <p className="ctl-countdown-hint">Hold it sideways on your forehead, screen facing out</p>
+      <p className="ctl-countdown-dirs">{noMotion ? 'Tap right: Got it. Tap left: Pass.' : 'Nod down: Got it. Tilt back: Pass.'}</p>
       <div key={seconds} className="ctl-countdown-num" aria-live="assertive">
         {seconds > 0 ? seconds : 'Go'}
       </div>

@@ -51,7 +51,7 @@ npm run setup-pal                # creates/updates both PALs + their tools, writ
 - `http://localhost:5173/?debug`: Stage panel with Room socket, PAL status, Director (Mode), Friend swap timing, QR scanner engine, last decoded Word QR, and the raw Tavus events plus Clue mode tilt tool calls (newest first). Every Tavus event is also in `window.__omhEvents` in the console.
 - `?react=0`: turns off the PAL's quick reaction on each tilt, for clean "new Word to first clue" measurements.
 - `/api/health`: `{"ok": true, "pal": true}` when the key and both PAL ids are configured; `pal: false` puts the Stage on its setup screen.
-- `/dev/forehead` (dev only): the Clue mode PAL forehead phone on its own, driven by buttons, no Tavus or Room needed.
+- `/dev/forehead` (dev only): the Clue mode PAL forehead phone on its own, driven by buttons, plus the Controller's Guess mode tilt demo, no Tavus or Room needed.
 
 ## Test
 
